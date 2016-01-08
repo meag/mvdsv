@@ -964,7 +964,7 @@ void ED_LoadFromFile (char *data)
 
 	ent = NULL;
 	inhibit = 0;
-	pr_global_struct->time = sv.time;
+	PR_SetGlobalFloat(time, sv.time);
 
 	// parse ents
 	while (1)
@@ -1023,7 +1023,7 @@ void ED_LoadFromFile (char *data)
 			continue;
 		}
 
-		pr_global_struct->self = EDICT_TO_PROG(ent);
+		PR_SetGlobalInt(self, EDICT_TO_PROG(ent));
 		PR_ExecuteProgram (func - pr_functions);
 		SV_FlushSignon();
 	}
@@ -1037,8 +1037,8 @@ qbool PR_ConsoleCmd(void)
 	{
 		if (sv_redirected != RD_MOD)
 		{
-			pr_global_struct->time = sv.time;
-			pr_global_struct->self = 0;
+			PR_SetGlobalFloat(time, sv.time);
+			PR_SetGlobalInt(self, 0);
 		}
 		PR_ExecuteProgram (mod_ConsoleCmd);
 		return (int) G_FLOAT(OFS_RETURN);

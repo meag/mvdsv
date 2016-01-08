@@ -208,10 +208,10 @@ typedef enum
 
 typedef struct
 {
-	string_t	name;
-	int			ofs;
-	fieldtype_t	type;
-//	int			flags;
+	pr2_string_t    name;
+	int             ofs;
+	fieldtype_t     type;
+//	int             flags;
 } field_t;
 
 typedef struct

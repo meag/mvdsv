@@ -351,7 +351,7 @@ void SV_DropClient (client_t *drop)
 	{
 		// call the prog function for removing a client
 		// this will set the body to a dead frame, among other things
-		pr_global_struct->self = EDICT_TO_PROG(drop->edict);
+		PR_SetGlobalInt(self, EDICT_TO_PROG(drop->edict));
 		PR_GameClientDisconnect(drop->spectator);
 	}
 
@@ -383,7 +383,7 @@ void SV_DropClient (client_t *drop)
 // <-- MD
 
 	drop->old_frags = 0;
-	drop->edict->v.frags = 0.0;
+	PR_SetEntityFloat(drop->edict, frags, 0.0f);
 	drop->name[0] = 0;
 
 	Info_RemoveAll(&drop->_userinfo_ctx_);
@@ -1294,7 +1294,7 @@ static void SVC_DirectConnect (void)
 	ent->e->free = false;
 	newcl->edict = ent;
 	// restore client name.
-	ent->v.netname = PR_SetString(newcl->name);
+	PR_SetEntityString(ent, netname, newcl->name);
 
 	s = ( vip ? va("%d", vip) : "" );
 
@@ -1338,8 +1338,22 @@ static void SVC_DirectConnect (void)
 	// call the progs to get default spawn parms for the new client
 	PR_GameSetNewParms();
 
-	for (i=0 ; i<NUM_SPAWN_PARMS ; i++)
-		newcl->spawn_parms[i] = (&PR_GLOBAL(parm1))[i];
+	newcl->spawn_parms[0] = PR_GetGlobalFloat(parm1);
+	newcl->spawn_parms[1] = PR_GetGlobalFloat(parm2);
+	newcl->spawn_parms[2] = PR_GetGlobalFloat(parm3);
+	newcl->spawn_parms[3] = PR_GetGlobalFloat(parm4);
+	newcl->spawn_parms[4] = PR_GetGlobalFloat(parm5);
+	newcl->spawn_parms[5] = PR_GetGlobalFloat(parm6);
+	newcl->spawn_parms[6] = PR_GetGlobalFloat(parm7);
+	newcl->spawn_parms[7] = PR_GetGlobalFloat(parm8);
+	newcl->spawn_parms[8] = PR_GetGlobalFloat(parm9);
+	newcl->spawn_parms[9] = PR_GetGlobalFloat(parm10);
+	newcl->spawn_parms[10] = PR_GetGlobalFloat(parm11);
+	newcl->spawn_parms[11] = PR_GetGlobalFloat(parm12);
+	newcl->spawn_parms[12] = PR_GetGlobalFloat(parm13);
+	newcl->spawn_parms[13] = PR_GetGlobalFloat(parm14);
+	newcl->spawn_parms[14] = PR_GetGlobalFloat(parm15);
+	newcl->spawn_parms[15] = PR_GetGlobalFloat(parm16);
 
 	// mvd/qtv related stuff
 	// Well, here is a chance what player connect after demo recording started,
@@ -2964,8 +2978,8 @@ static void SV_CheckTimeouts (void)
 	{
 		// nobody left, unpause the server
 		if (GE_ShouldPause) {
-			pr_global_struct->time = sv.time;
-			pr_global_struct->self = EDICT_TO_PROG(sv.edicts);
+			PR_SetGlobalFloat(time, sv.time);
+			PR_SetGlobalInt(self, EDICT_TO_PROG(sv.edicts));
 			G_FLOAT(OFS_PARM0) = 0 /* newstate = false */;
 			PR_ExecuteProgram (GE_ShouldPause);
 			if (!G_FLOAT(OFS_RETURN))

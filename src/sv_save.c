@@ -45,7 +45,7 @@ void SV_SavegameComment (char *buffer) {
 	for (i = 0; i < SAVEGAME_COMMENT_LENGTH; i++)
 		buffer[i] = ' ';
 	memcpy (buffer, mapname, min(strlen(mapname), 21));
-	snprintf (kills, sizeof (kills), "kills:%3i/%-3i", (int)PR_GLOBAL(killed_monsters), (int)PR_GLOBAL(total_monsters));
+	snprintf (kills, sizeof (kills), "kills:%3i/%-3i", (int)PR_GetGlobalFloat(killed_monsters), (int)PR_GetGlobalFloat(total_monsters));
 	memcpy (buffer + 22, kills, strlen(kills));
 
 	// convert space to _ to make stdio happy
@@ -90,7 +90,7 @@ void SV_SaveGame_f (void) {
 	if (svs.clients[0].state != cs_spawned) {
 		Con_Printf ("Can't save, client #0 not spawned.\n");
 		return;
-	} else if (svs.clients[0].edict->v.health <= 0) {
+	} else if (PR_GetEntityFloat(svs.clients[0].edict, health) <= 0) {
 		Con_Printf ("Can't save game with a dead player\n");
 		// in fact, we can, but does it make sense?
 		return;

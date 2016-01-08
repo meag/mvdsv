@@ -21,6 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "qwsvdef.h"
 
+#define	G_STRING(o) (PR1_GetString(*(string_t *)&pr_globals[o]))
 #define	RETURN_EDICT(e) (((int *)pr_globals)[OFS_RETURN] = EDICT_TO_PROG(e))
 #define	RETURN_STRING(s) (((int *)pr_globals)[OFS_RETURN] = PR1_SetString(s))
 
@@ -63,7 +64,7 @@ void PF_error (void)
 
 	s = PF_VarString(0);
 	Con_Printf ("======SERVER ERROR in %s:\n%s\n", PR1_GetString(pr_xfunction->s_name) ,s);
-	ed = PROG_TO_EDICT(pr_global_struct->self);
+	ed = PROG_TO_EDICT(PR_GetGlobalInt(self));
 	ED_Print (ed);
 
 	SV_Error ("Program error");
@@ -86,7 +87,7 @@ void PF_objerror (void)
 
 	s = PF_VarString(0);
 	Con_Printf ("======OBJECT ERROR in %s:\n%s\n", PR1_GetString(pr_xfunction->s_name),s);
-	ed = PROG_TO_EDICT(pr_global_struct->self);
+	ed = PROG_TO_EDICT(PR_GetGlobalInt(self));
 	ED_Print (ed);
 	ED_Free (ed);
 
@@ -105,7 +106,15 @@ makevectors(vector)
 */
 void PF_makevectors (void)
 {
-	AngleVectors (G_VECTOR(OFS_PARM0), PR_GLOBAL(v_forward), PR_GLOBAL(v_right), PR_GLOBAL(v_up));
+	vec3_t v_forward = { 0 };
+	vec3_t v_right = { 0 };
+	vec3_t v_up = { 0 };
+
+	AngleVectors (G_VECTOR(OFS_PARM0), v_forward, v_right, v_up);
+
+	PR_SetGlobalVector(v_forward, v_forward);
+	PR_SetGlobalVector(v_right, v_right);
+	PR_SetGlobalVector(v_up, v_up);
 }
 
 /*
@@ -662,18 +671,18 @@ void PF_traceline (void)
 
 	trace = SV_Trace (v1, vec3_origin, vec3_origin, v2, nomonsters, ent);
 
-	PR_GLOBAL(trace_allsolid) = trace.allsolid;
-	PR_GLOBAL(trace_startsolid) = trace.startsolid;
-	PR_GLOBAL(trace_fraction) = trace.fraction;
-	PR_GLOBAL(trace_inwater) = trace.inwater;
-	PR_GLOBAL(trace_inopen) = trace.inopen;
-	VectorCopy (trace.endpos, PR_GLOBAL(trace_endpos));
-	VectorCopy (trace.plane.normal, PR_GLOBAL(trace_plane_normal));
-	PR_GLOBAL(trace_plane_dist) =  trace.plane.dist;	
+	PR_SetGlobalFloat(trace_allsolid, trace.allsolid);
+	PR_SetGlobalFloat(trace_startsolid, trace.startsolid);
+	PR_SetGlobalFloat(trace_fraction, trace.fraction);
+	PR_SetGlobalFloat(trace_inwater, trace.inwater);
+	PR_SetGlobalFloat(trace_inopen, trace.inopen);
+	PR_SetGlobalVector(trace_endpos, trace.endpos);
+	PR_SetGlobalVector(trace_plane_normal, trace.plane.normal);
+	PR_SetGlobalFloat(trace_plane_dist, trace.plane.dist);
 	if (trace.e.ent)
-		PR_GLOBAL(trace_ent) = EDICT_TO_PROG(trace.e.ent);
+		PR_SetGlobalInt(trace_ent, EDICT_TO_PROG(trace.e.ent));
 	else
-		PR_GLOBAL(trace_ent) = EDICT_TO_PROG(sv.edicts);
+		PR_SetGlobalInt(trace_ent, EDICT_TO_PROG(sv.edicts));
 }
 
 /*
@@ -780,7 +789,7 @@ static void PF_checkclient (void)
 	}
 
 // if current entity can't possibly see the check entity, return 0
-	self = PROG_TO_EDICT(pr_global_struct->self);
+	self = PROG_TO_EDICT(PR_GetGlobalInt(self));
 	VectorAdd (self->v.origin, self->v.view_ofs, vieworg);
 	l = CM_Leafnum(CM_PointInLeaf(vieworg)) - 1;
 	if ( (l<0) || !(checkpvs[l>>3] & (1<<(l&7)) ) )
@@ -1449,7 +1458,7 @@ void PF_walkmove (void)
 	dfunction_t	*oldf;
 	int 	oldself;
 
-	ent = PROG_TO_EDICT(pr_global_struct->self);
+	ent = PROG_TO_EDICT(PR_GetGlobalInt(self));
 	yaw = G_FLOAT(OFS_PARM0);
 	dist = G_FLOAT(OFS_PARM1);
 
@@ -1467,14 +1476,14 @@ void PF_walkmove (void)
 
 	// save program state, because SV_movestep may call other progs
 	oldf = pr_xfunction;
-	oldself = pr_global_struct->self;
+	oldself = PR_GetGlobalInt(self);
 
 	G_FLOAT(OFS_RETURN) = SV_movestep(ent, move, true);
 
 
 	// restore program state
 	pr_xfunction = oldf;
-	pr_global_struct->self = oldself;
+	PR_SetGlobalInt(self, oldself);
 }
 
 /*
@@ -1490,7 +1499,7 @@ void PF_droptofloor (void)
 	vec3_t		end;
 	trace_t		trace;
 
-	ent = PROG_TO_EDICT(pr_global_struct->self);
+	ent = PROG_TO_EDICT(PR_GetGlobalInt(self));
 
 	VectorCopy (ent->v.origin, end);
 	end[2] -= 256;
@@ -1638,7 +1647,7 @@ vector aim(entity, missilespeed)
 */
 void PF_aim (void)
 {
-	VectorCopy (PR_GLOBAL(v_forward), G_VECTOR(OFS_RETURN));
+	VectorCopy (PR_GetGlobalVector(v_forward), G_VECTOR(OFS_RETURN));
 }
 
 /*
@@ -1653,7 +1662,7 @@ void PF_changeyaw (void)
 	edict_t		*ent;
 	float		ideal, current, move, speed;
 
-	ent = PROG_TO_EDICT(pr_global_struct->self);
+	ent = PROG_TO_EDICT(PR_GetGlobalInt(self));
 	current = anglemod( ent->v.angles[1] );
 	ideal = ent->v.ideal_yaw;
 	speed = ent->v.yaw_speed;
@@ -1714,7 +1723,7 @@ sizebuf_t *WriteDest (void)
 	case MSG_ONE:
 		SV_Error("Shouldn't be at MSG_ONE");
 #if 0
-		ent = PROG_TO_EDICT(PR_GLOBAL(msg_entity));
+		ent = PROG_TO_EDICT(PR_GetGlobalInt(msg_entity));
 		entnum = NUM_FOR_EDICT(ent);
 		if (entnum < 1 || entnum > MAX_CLIENTS)
 			PR_RunError ("WriteDest: not a client");
@@ -1745,7 +1754,7 @@ static client_t *Write_GetClient(void)
 	int		entnum;
 	edict_t	*ent;
 
-	ent = PROG_TO_EDICT(PR_GLOBAL(msg_entity));
+	ent = PROG_TO_EDICT(PR_GetGlobalInt(msg_entity));
 	entnum = NUM_FOR_EDICT(ent);
 	if (entnum < 1 || entnum > MAX_CLIENTS)
 		PR_RunError ("WriteDest: not a client");
@@ -2249,8 +2258,22 @@ void PF_setspawnparms (void)
 	// copy spawn parms out of the client_t
 	client = svs.clients + (i-1);
 
-	for (i=0 ; i< NUM_SPAWN_PARMS ; i++)
-		(&PR_GLOBAL(parm1))[i] = client->spawn_parms[i];
+	PR_SetGlobalFloat(parm1, client->spawn_parms[0]);
+	PR_SetGlobalFloat(parm2, client->spawn_parms[1]);
+	PR_SetGlobalFloat(parm3, client->spawn_parms[2]);
+	PR_SetGlobalFloat(parm4, client->spawn_parms[3]);
+	PR_SetGlobalFloat(parm5, client->spawn_parms[4]);
+	PR_SetGlobalFloat(parm6, client->spawn_parms[5]);
+	PR_SetGlobalFloat(parm7, client->spawn_parms[6]);
+	PR_SetGlobalFloat(parm8, client->spawn_parms[7]);
+	PR_SetGlobalFloat(parm9, client->spawn_parms[8]);
+	PR_SetGlobalFloat(parm10, client->spawn_parms[9]);
+	PR_SetGlobalFloat(parm11, client->spawn_parms[10]);
+	PR_SetGlobalFloat(parm12, client->spawn_parms[11]);
+	PR_SetGlobalFloat(parm13, client->spawn_parms[12]);
+	PR_SetGlobalFloat(parm14, client->spawn_parms[13]);
+	PR_SetGlobalFloat(parm15, client->spawn_parms[14]);
+	PR_SetGlobalFloat(parm16, client->spawn_parms[15]);
 }
 
 /*
@@ -2517,18 +2540,18 @@ static void PF_tracebox (void)
 
         trace = SV_Trace (v1, mins, maxs, v2, nomonsters, ent);
 
-        PR_GLOBAL(trace_allsolid) = trace.allsolid;
-        PR_GLOBAL(trace_startsolid) = trace.startsolid;
-        PR_GLOBAL(trace_fraction) = trace.fraction;
-        PR_GLOBAL(trace_inwater) = trace.inwater;
-        PR_GLOBAL(trace_inopen) = trace.inopen;
-        VectorCopy (trace.endpos, PR_GLOBAL(trace_endpos));
-        VectorCopy (trace.plane.normal, PR_GLOBAL(trace_plane_normal));
-        PR_GLOBAL(trace_plane_dist) =  trace.plane.dist;
+        PR_SetGlobalFloat(trace_allsolid, trace.allsolid);
+        PR_SetGlobalFloat(trace_startsolid, trace.startsolid);
+        PR_SetGlobalFloat(trace_fraction, trace.fraction);
+        PR_SetGlobalFloat(trace_inwater, trace.inwater);
+        PR_SetGlobalFloat(trace_inopen, trace.inopen);
+		PR_SetGlobalVector(trace_endpos, trace.endpos);
+		PR_SetGlobalVector(trace_plane_normal, trace.plane.normal);
+        PR_SetGlobalFloat(trace_plane_dist, trace.plane.dist);
         if (trace.e.ent)
-                PR_GLOBAL(trace_ent) = EDICT_TO_PROG(trace.e.ent);
+                PR_SetGlobalInt(trace_ent, EDICT_TO_PROG(trace.e.ent));
         else
-                PR_GLOBAL(trace_ent) = EDICT_TO_PROG(sv.edicts);
+                PR_SetGlobalInt(trace_ent, EDICT_TO_PROG(sv.edicts));
 }
 
 /*

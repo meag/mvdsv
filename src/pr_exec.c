@@ -369,8 +369,8 @@ void PR_ExecuteProgram (func_t fnum)
 
 	if (!fnum || fnum >= progs->numfunctions)
 	{
-		if (pr_global_struct->self)
-			ED_Print (PROG_TO_EDICT(pr_global_struct->self));
+		if (PR_GetGlobalInt(self))
+			ED_Print (PROG_TO_EDICT(PR_GetGlobalInt(self)));
 		SV_Error ("PR_ExecuteProgram: NULL function");
 	}
 
@@ -651,8 +651,8 @@ void PR_ExecuteProgram (func_t fnum)
 			break;
 
 		case OP_STATE:
-			ed = PROG_TO_EDICT(pr_global_struct->self);
-			ed->v.nextthink = pr_global_struct->time + 0.1;
+			ed = PROG_TO_EDICT(PR_GetGlobalInt(self));
+			ed->v.nextthink = PR_GetGlobalFloat(time) + 0.1;
 			if (a->_float != ed->v.frame)
 			{
 				ed->v.frame = a->_float;
@@ -743,7 +743,7 @@ void PR1_GameClientDisconnect(int spec)
 	}
 	else
 	{
-		PR_ExecuteProgram(PR_GLOBAL(ClientDisconnect));
+		PR_ExecuteProgram(PR_GetGlobalFunc(ClientDisconnect));
 	}
 }
 
@@ -758,7 +758,7 @@ void PR1_GameClientConnect(int spec)
 	}
 	else
 	{
-		PR_ExecuteProgram(PR_GLOBAL(ClientConnect));
+		PR_ExecuteProgram(PR_GetGlobalFunc(ClientConnect));
 	}
 }
 
@@ -772,7 +772,7 @@ void PR1_GamePutClientInServer(int spec)
 	}
 	else
 	{
-		PR_ExecuteProgram(PR_GLOBAL(PutClientInServer));
+		PR_ExecuteProgram(PR_GetGlobalFunc(PutClientInServer));
 	}
 }
 
@@ -786,7 +786,7 @@ void PR1_GameClientPreThink(int spec)
 	}
 	else
 	{
-		PR_ExecuteProgram(PR_GLOBAL(PlayerPreThink));
+		PR_ExecuteProgram(PR_GetGlobalFunc(PlayerPreThink));
 	}
 }
 
@@ -801,7 +801,7 @@ void PR1_GameClientPostThink(int spec)
 	}
 	else
 	{
-		PR_ExecuteProgram(PR_GLOBAL(PlayerPostThink));
+		PR_ExecuteProgram(PR_GetGlobalFunc(PlayerPostThink));
 	}
 }
 
@@ -858,4 +858,3 @@ void PR1_UnLoadProgs()
 		progs = NULL;
 	}
 }
-

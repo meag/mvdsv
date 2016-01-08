@@ -100,8 +100,7 @@ extern	int pr_fieldoffsetpatch[106];
 extern	int pr_globaloffsetpatch[62];
 
 #define PR_FIELDOFS(i) ((unsigned int)(i) > 105 ? (i) : pr_fieldoffsetpatch[i])
-#define PR_GLOBAL(field) (((globalvars_t *)((byte *)pr_global_struct + \
-	pr_globaloffsetpatch[((int *)&((globalvars_t *)0)->field - (int *)0) - 28]))->field)
+//#define PR_GLOBAL(field) (((globalvars_t *)((byte *)pr_global_struct + pr_globaloffsetpatch[((int *)&((globalvars_t *)0)->field - (int *)0) - 28]))->field)
 
 void NQP_Reset (void);
 
@@ -109,7 +108,7 @@ void NQP_Reset (void);
 
 #define pr_nqprogs 0
 #define PR_FIELDOFS(i) (i)
-#define PR_GLOBAL(field) pr_global_struct->field
+//#define PR_GLOBAL(field) pr_global_struct->field
 #define NQP_Reset()
 
 #endif
@@ -154,7 +153,6 @@ int NUM_FOR_EDICT(edict_t *e);
 #define	G_EDICT(o) ((edict_t *)((byte *)sv.edicts+ *(int *)&pr_globals[o]))
 #define G_EDICTNUM(o) NUM_FOR_EDICT(G_EDICT(o))
 #define	G_VECTOR(o) (&pr_globals[o])
-#define	G_STRING(o) (PR1_GetString(*(string_t *)&pr_globals[o]))
 #define	G_FUNCTION(o) (*(func_t *)&pr_globals[o])
 
 #define	E_FLOAT(e,o) (((float*)&e->v)[o])
@@ -227,10 +225,10 @@ qbool PR1_ClientSay(int isTeamSay, char *message);
 void PR1_PausedTic(float duration);
 qbool PR1_ClientCmd(void);
 
-#define PR1_GameSetChangeParms() PR_ExecuteProgram(PR_GLOBAL(SetChangeParms))
-#define PR1_GameSetNewParms() PR_ExecuteProgram(PR_GLOBAL(SetNewParms))
-#define PR1_GameStartFrame() PR_ExecuteProgram (PR_GLOBAL(StartFrame))
-#define PR1_ClientKill() PR_ExecuteProgram (PR_GLOBAL(ClientKill))
+#define PR1_GameSetChangeParms() PR_ExecuteProgram(PR_GetGlobalFunc(SetChangeParms))
+#define PR1_GameSetNewParms() PR_ExecuteProgram(PR_GetGlobalFunc(SetNewParms))
+#define PR1_GameStartFrame() PR_ExecuteProgram (PR_GetGlobalFunc(StartFrame))
+#define PR1_ClientKill() PR_ExecuteProgram (PR_GetGlobalFunc(ClientKill))
 #define PR1_UserInfoChanged() (0) // PR1 does not really have it,
 								  // we have mod_UserInfo_Changed but it is slightly different.
 #define PR1_LoadEnts ED_LoadFromFile
@@ -268,6 +266,30 @@ qbool PR1_ClientCmd(void);
 	#define PR_EdictThink PR1_EdictThink
 	#define PR_EdictTouch PR1_EdictTouch
 	#define PR_EdictBlocked PR1_EdictBlocked
+
+	#define PR_SetGlobalString(x,y) pr_global_struct->x = PR1_SetString(y)
+	#define PR_SetGlobalInt(x,y) pr_global_struct->x = y
+	#define PR_SetGlobalFloat(x,y) pr_global_struct->x = y
+	#define PR_SetGlobalVector(x,y) VectorCopy(y, pr_global_struct->x)
+	#define PR_SetGlobalFunc(x,y) pr_global_struct->x = y
+
+	#define PR_GetGlobalString(x) (pr_global_struct->x)
+	#define PR_GetGlobalInt(x) (pr_global_struct->x)
+	#define PR_GetGlobalFloat(x) (pr_global_struct->x)
+	#define PR_GetGlobalVector(x) (pr_global_struct->x)
+	#define PR_GetGlobalFunc(x) (pr_global_struct->x)
+
+	#define PR_SetEntityString(ent, fieldname, val) ent->v.fieldname = PR1_SetString(val)
+	#define PR_SetEntityInt(ent, fieldname, val) ent->v.fieldname = val
+	#define PR_SetEntityFloat(ent, fieldname, val) ent->v.fieldname = val
+	#define PR_SetEntityVector(ent, fieldname, val) VectorCopy(val, ent->v.fieldname)
+	#define PR_SetEntityFunc(ent, fieldname, val) ent->v.fieldname = val
+
+	#define PR_GetEntityString(ent, fieldname) PR1_GetString(ent->v.fieldname)
+	#define PR_GetEntityInt(ent, fieldname) (ent->v.fieldname)
+	#define PR_GetEntityFloat(ent, fieldname) (ent->v.fieldname)
+	#define PR_GetEntityVector(ent, fieldname) (ent->v.fieldname)
+	#define PR_GetEntityFunc(ent, fieldname) (ent->v.fieldname)
 #endif
 
 // pr_cmds.c

@@ -195,7 +195,7 @@ void PF2_setorigin(byte* base, uintptr_t mask, pr2val_t* stack, pr2val_t*retval)
 	origin[1] = stack[2]._float;
 	origin[2] = stack[3]._float;
 
-	VectorCopy(origin, e->v.origin);
+	PR_SetEntityVector(e, origin, origin);
 	SV_AntilagReset(e);
 	SV_LinkEdict(e, false);
 }
@@ -211,20 +211,24 @@ setsize (entity, minvector, maxvector)
 */
 void PF2_setsize(byte* base, uintptr_t mask, pr2val_t* stack, pr2val_t*retval)
 {
-	//vec3_t min, max;
+	vec3_t mins, maxs, size;
 	edict_t	*e ;
 
 	e = EDICT_NUM(stack[0]._int);
 
-	e->v.mins[0] = stack[1]._float;
-	e->v.mins[1] = stack[2]._float;
-	e->v.mins[2] = stack[3]._float;
+	mins[1] = stack[2]._float;
+	mins[0] = stack[1]._float;
+	mins[2] = stack[3]._float;
 
-	e->v.maxs[0] = stack[4]._float;
-	e->v.maxs[1] = stack[5]._float;
-	e->v.maxs[2] = stack[6]._float;
+	maxs[0] = stack[4]._float;
+	maxs[1] = stack[5]._float;
+	maxs[2] = stack[6]._float;
 
-	VectorSubtract(e->v.maxs, e->v.mins, e->v.size);
+	VectorSubtract(maxs, mins, size);
+
+	PR_SetEntityVector(e, mins, mins);
+	PR_SetEntityVector(e, maxs, maxs);
+	PR_SetEntityVector(e, size, size);
 
 	SV_LinkEdict(e, false);
 }
@@ -257,16 +261,20 @@ void PF2_setmodel(byte* base, uintptr_t mask, pr2val_t* stack, pr2val_t*retval)
 	if (!*check)
 		PR2_RunError("no precache: %s\n", m);
 
-	e->v.model = PR2_SetString(m);
-	e->v.modelindex = i;
+	PR_SetEntityString(e, model, m);
+	PR_SetEntityFloat(e, modelindex, i);
 
 	// if it is an inline model, get the size information for it
 	if (m[0] == '*')
 	{
+		vec3_t size = { 0 };
 		mod = CM_InlineModel (m);
-		VectorCopy(mod->mins, e->v.mins);
-		VectorCopy(mod->maxs, e->v.maxs);
-		VectorSubtract(mod->maxs, mod->mins, e->v.size);
+
+		PR_SetEntityVector(e, mins, mod->mins);
+		PR_SetEntityVector(e, maxs, mod->maxs);
+		VectorSubtract(mod->maxs, mod->mins, size);
+		PR_SetEntityVector(e, size, size);
+
 		SV_LinkEdict(e, false);
 	}
 
@@ -509,19 +517,19 @@ void PF2_traceline(byte* base, uintptr_t mask, pr2val_t* stack, pr2val_t*retval)
 
 	trace = SV_Trace(v1, vec3_origin, vec3_origin, v2, nomonsters, ent);
 
-	pr_global_struct->trace_allsolid = trace.allsolid;
-	pr_global_struct->trace_startsolid = trace.startsolid;
-	pr_global_struct->trace_fraction = trace.fraction;
-	pr_global_struct->trace_inwater = trace.inwater;
-	pr_global_struct->trace_inopen = trace.inopen;
-	VectorCopy (trace.endpos, pr_global_struct->trace_endpos);
-	VectorCopy (trace.plane.normal, pr_global_struct->trace_plane_normal);
-	pr_global_struct->trace_plane_dist = trace.plane.dist;
+	PR_SetGlobalFloat(trace_allsolid, trace.allsolid);
+	PR_SetGlobalFloat(trace_startsolid, trace.startsolid);
+	PR_SetGlobalFloat(trace_fraction, trace.fraction);
+	PR_SetGlobalFloat(trace_inwater, trace.inwater);
+	PR_SetGlobalFloat(trace_inopen, trace.inopen);
+	PR_SetGlobalVector(trace_endpos, trace.endpos);
+	PR_SetGlobalVector(trace_plane_normal, trace.plane.normal);
+	PR_SetGlobalFloat(trace_plane_dist, trace.plane.dist);
 
 	if (trace.e.ent)
-		pr_global_struct->trace_ent = EDICT_TO_PROG(trace.e.ent);
+		PR_SetGlobalInt(trace_ent, EDICT_TO_PROG(trace.e.ent));
 	else
-		pr_global_struct->trace_ent = EDICT_TO_PROG(sv.edicts);
+		PR_SetGlobalInt(trace_ent, EDICT_TO_PROG(sv.edicts));
 }
 
 /*
@@ -569,19 +577,19 @@ void PF2_TraceCapsule(byte* base, uintptr_t mask, pr2val_t* stack, pr2val_t*retv
 
 	trace = SV_Trace(v1, v3, v4, v2, nomonsters, ent);
 
-	pr_global_struct->trace_allsolid = trace.allsolid;
-	pr_global_struct->trace_startsolid = trace.startsolid;
-	pr_global_struct->trace_fraction = trace.fraction;
-	pr_global_struct->trace_inwater = trace.inwater;
-	pr_global_struct->trace_inopen = trace.inopen;
-	VectorCopy (trace.endpos, pr_global_struct->trace_endpos);
-	VectorCopy (trace.plane.normal, pr_global_struct->trace_plane_normal);
-	pr_global_struct->trace_plane_dist = trace.plane.dist;
+	PR_SetGlobalFloat(trace_allsolid, trace.allsolid);
+	PR_SetGlobalFloat(trace_startsolid, trace.startsolid);
+	PR_SetGlobalFloat(trace_fraction, trace.fraction);
+	PR_SetGlobalFloat(trace_inwater, trace.inwater);
+	PR_SetGlobalFloat(trace_inopen, trace.inopen);
+	PR_SetGlobalVector(trace_endpos, trace.endpos);
+	PR_SetGlobalVector(trace_plane_normal, trace.plane.normal);
+	PR_SetGlobalFloat(trace_plane_dist, trace.plane.dist);
 
 	if (trace.e.ent)
-		pr_global_struct->trace_ent = EDICT_TO_PROG(trace.e.ent);
+		PR_SetGlobalInt(trace_ent, EDICT_TO_PROG(trace.e.ent));
 	else
-		pr_global_struct->trace_ent = EDICT_TO_PROG(sv.edicts);
+		PR_SetGlobalInt(trace_ent, EDICT_TO_PROG(sv.edicts));
 }
 
 /*
@@ -631,9 +639,9 @@ int PF2_newcheckclient(int check)
 
 		if (ent->e->free)
 			continue;
-		if (ent->v.health <= 0)
+		if (PR_GetEntityFloat(ent, health) <= 0)
 			continue;
-		if ((int) ent->v.flags & FL_NOTARGET)
+		if ((int)PR_GetEntityFloat(ent, flags) & FL_NOTARGET)
 			continue;
 
 		// anything that is a client, or has a client as an enemy
@@ -641,7 +649,7 @@ int PF2_newcheckclient(int check)
 	}
 
 	// get the PVS for the entity
-	VectorAdd (ent->v.origin, ent->v.view_ofs, org);
+	VectorAdd (PR_GetEntityVector(ent, origin), PR_GetEntityVector(ent, view_ofs), org);
 	checkpvs = CM_LeafPVS (CM_PointInLeaf(org));
 
 	return i;
@@ -664,7 +672,7 @@ void PF2_checkclient(byte* base, uintptr_t mask, pr2val_t* stack, pr2val_t*retva
 
 	// return check if it might be visible
 	ent = EDICT_NUM(sv.lastcheck);
-	if (ent->e->free || ent->v.health <= 0)
+	if (ent->e->free || PR_GetEntityFloat(ent, health) <= 0)
 	{
 		// RETURN_EDICT(sv.edicts);
 		retval->_int = NUM_FOR_EDICT(sv.edicts);
@@ -672,8 +680,8 @@ void PF2_checkclient(byte* base, uintptr_t mask, pr2val_t* stack, pr2val_t*retva
 	}
 
 	// if current entity can't possibly see the check entity, return 0
-	self = PROG_TO_EDICT(pr_global_struct->self);
-	VectorAdd(self->v.origin, self->v.view_ofs, view);
+	self = PROG_TO_EDICT(PR_GetGlobalInt(self));
+	VectorAdd(PR_GetEntityVector(self, origin), PR_GetEntityVector(self, view_ofs), view);
 	l = CM_Leafnum(CM_PointInLeaf(view)) - 1;
 	if ((l < 0) || !(checkpvs[l >> 3] & (1 << (l & 7))))
 	{
@@ -805,13 +813,13 @@ void PF2_executecmd(byte* base, uintptr_t mask, pr2val_t* stack, pr2val_t*retval
 {
 	int old_other, old_self; // mod_consolecmd will be executed, so we need to store this
 
-	old_self = pr_global_struct->self;
-	old_other = pr_global_struct->other;
+	old_self = PR_GetGlobalInt(self);
+	old_other = PR_GetGlobalInt(other);
 
 	Cbuf_Execute();
 
-	pr_global_struct->self = old_self;
-	pr_global_struct->other = old_other;
+	PR_SetGlobalInt(self, old_self);
+	PR_SetGlobalInt(other, old_other);
 }
 
 /*
@@ -978,10 +986,10 @@ void PF2_FindRadius( byte * base, uintptr_t mask, pr2val_t * stack, pr2val_t * r
 
 		if (ed->e->free)
 			continue;
-		if (ed->v.solid == SOLID_NOT)
+		if (PR_GetEntityFloat(ed, solid) == SOLID_NOT)
 			continue;
 		for (j=0 ; j<3 ; j++)
-			eorg[j] = org[j] - (ed->v.origin[j] + (ed->v.mins[j] + ed->v.maxs[j])*0.5);			
+			eorg[j] = org[j] - (PR_GetEntityVector(ed, origin)[j] + (PR_GetEntityVector(ed, mins)[j] + PR_GetEntityVector(ed, maxs)[j])*0.5);
 		if (VectorLength(eorg) > rad)
 			continue;
 		retval->_int = POINTER_TO_VM( base, mask, ed );
@@ -1014,14 +1022,14 @@ void PF2_walkmove(byte* base, uintptr_t mask, pr2val_t* stack, pr2val_t*retval)
 		retval->_int =  0; 
 		return;
 	}*/
-	//	ent = PROG_TO_EDICT(pr_global_struct->self);
+	//	ent = PROG_TO_EDICT(PR_GetGlobalInt(self));
 	//	yaw = G_FLOAT(OFS_PARM0);
 	//	dist = G_FLOAT(OFS_PARM1);
 	ent  = EDICT_NUM(stack[0]._int);
 	yaw  = stack[1]._float;
 	dist = stack[2]._float;
 
-	if (!((int) ent->v.flags & (FL_ONGROUND | FL_FLY | FL_SWIM)))
+	if (!((int)PR_GetEntityFloat(ent, flags) & (FL_ONGROUND | FL_FLY | FL_SWIM)))
 	{
 		retval->_int =  0;
 		return;
@@ -1036,14 +1044,14 @@ void PF2_walkmove(byte* base, uintptr_t mask, pr2val_t* stack, pr2val_t*retval)
 
 	// save program state, because SV_movestep may call other progs
 	//	oldf = pr_xfunction;
-	oldself = pr_global_struct->self;
+	oldself = PR_GetGlobalInt(self);
 
 	retval->_int = SV_movestep(ent, move, true);
 
 
 	// restore program state
 	//	pr_xfunction = oldf;
-	pr_global_struct->self = oldself;
+	PR_SetGlobalInt(self, oldself);
 	return;
 }
 
@@ -1063,33 +1071,33 @@ void PF2_MoveToGoal(byte* base, uintptr_t mask, pr2val_t* stack, pr2val_t*retval
 	//	dfunction_t	*oldf;
 	int			oldself;
 
-	ent  = PROG_TO_EDICT(pr_global_struct->self);
-	goal = PROG_TO_EDICT(ent->v.goalentity);
+	ent  = PROG_TO_EDICT(PR_GetGlobalInt(self));
+	goal = PROG_TO_EDICT(PR_GetEntityInt(ent, goalentity));
 	dist = stack[0]._float;
 
-	if ( !( (int)ent->v.flags & (FL_ONGROUND|FL_FLY|FL_SWIM) ) )
+	if ( !( (int)PR_GetEntityFloat(ent, flags) & (FL_ONGROUND|FL_FLY|FL_SWIM) ) )
 	{
 		retval->_int =  0;
 		return;
 	}
 
 	// if the next step hits the enemy, return immediately
-	if ( PROG_TO_EDICT(ent->v.enemy) != sv.edicts && SV_CloseEnough (ent, goal, dist) )
+	if ( PROG_TO_EDICT(PR_GetEntityInt(ent, enemy)) != sv.edicts && SV_CloseEnough (ent, goal, dist) )
 		return;
 
 	// save program state, because SV_movestep may call other progs
 	//	oldf = pr_xfunction;
-	oldself = pr_global_struct->self;
+	oldself = PR_GetGlobalInt(self);
 
 	// bump around...
-	if ( (rand()&3)==1 || !SV_StepDirection (ent, ent->v.ideal_yaw, dist))
+	if ( (rand()&3)==1 || !SV_StepDirection (ent, PR_GetEntityFloat(ent, ideal_yaw), dist))
 	{
 		SV_NewChaseDir (ent, goal, dist);
 	}
 
 	// restore program state
 	//	pr_xfunction = oldf;
-	pr_global_struct->self = oldself;
+	PR_SetGlobalInt(self, oldself);
 }
 
 
@@ -1104,16 +1112,18 @@ void(entnum) droptofloor
 */
 void PF2_droptofloor(byte* base, uintptr_t mask, pr2val_t* stack, pr2val_t*retval)
 {
-	edict_t		*ent;
-	vec3_t		end;
-	trace_t		trace;
+	edict_t     *ent;
+	vec3_t      end;
+	vec3_t      entOrigin;
+	trace_t     trace;
 
 	ent = EDICT_NUM(stack[0]._int);
+	VectorCopy(PR_GetEntityVector(ent, origin), entOrigin);
 
-	VectorCopy(ent->v.origin, end);
+	VectorCopy(entOrigin, end);
 	end[2] -= 256;
 
-	trace = SV_Trace(ent->v.origin, ent->v.mins, ent->v.maxs, end, false, ent);
+	trace = SV_Trace(entOrigin, PR_GetEntityVector(ent, mins), PR_GetEntityVector(ent, maxs), end, false, ent);
 
 	if (trace.fraction == 1 || trace.allsolid)
 	{
@@ -1122,10 +1132,10 @@ void PF2_droptofloor(byte* base, uintptr_t mask, pr2val_t* stack, pr2val_t*retva
 	}
 	else
 	{
-		VectorCopy(trace.endpos, ent->v.origin);
+		VectorCopy(trace.endpos, PR_GetEntityVector(ent, origin));
 		SV_LinkEdict(ent, false);
-		ent->v.flags = (int) ent->v.flags | FL_ONGROUND;
-		ent->v.groundentity = EDICT_TO_PROG(trace.e.ent);
+		PR_SetEntityFloat(ent, flags, (int) PR_GetEntityFloat(ent, flags) | FL_ONGROUND);
+		PR_SetEntityInt(ent, groundentity, EDICT_TO_PROG(trace.e.ent));
 		retval->_int =  1;
 		return;
 	}
@@ -1140,12 +1150,12 @@ void(int style, string value) lightstyle
 */
 void PF2_lightstyle(byte* base, uintptr_t mask, pr2val_t* stack, pr2val_t*retval)
 {
-	client_t	*client;
-	int			j,style;
-	char*	val;
+	client_t    *client;
+	int	        j,style;
+	char*       val;
 
-	style 	= stack[0]._int;
-	val	= (char *) VM_POINTER(base,mask,stack[1]._int);
+	style   = stack[0]._int;
+	val	    = (char *) VM_POINTER(base,mask,stack[1]._int);
 
 	// change the string in sv
 	sv.lightstyles[style] = val;
@@ -1355,7 +1365,7 @@ sizebuf_t *WriteDest2(int dest)
 	case MSG_ONE:
 		SV_Error("Shouldn't be at MSG_ONE");
 #if 0
-		ent = PROG_TO_EDICT(pr_global_struct->msg_entity);
+		ent = PROG_TO_EDICT(PR_GetGlobalInt(msg_entity));
 		entnum = NUM_FOR_EDICT(ent);
 		if (entnum < 1 || entnum > MAX_CLIENTS)
 			PR2_RunError("WriteDest: not a client");
@@ -1387,7 +1397,7 @@ static client_t *Write_GetClient(void)
 	int		entnum;
 	edict_t	*ent;
 
-	ent = PROG_TO_EDICT(pr_global_struct->msg_entity);
+	ent = PROG_TO_EDICT(PR_GetGlobalInt(msg_entity));
 	entnum = NUM_FOR_EDICT(ent);
 	if (entnum < 1 || entnum > MAX_CLIENTS)
 		PR2_RunError("WriteDest: not a client");
@@ -1594,21 +1604,26 @@ PF2_makestatic
 void PF2_makestatic(byte* base, uintptr_t mask, pr2val_t* stack, pr2val_t*retval)
 {
 	edict_t	*ent;
+	float*  origin;
+	float*  angles;
 	int		i;
+	char*   modelname;
 
 	ent = EDICT_NUM(stack[0]._int);
+	origin = PR_GetEntityVector(ent, origin);
+	angles = PR_GetEntityVector(ent, angles);
+	modelname = PR_GetEntityString(ent, model);
 
 	MSG_WriteByte(&sv.signon, svc_spawnstatic);
-#pragma msg("Why it is not just PR_GetString(ent->v.model) instead of VM_POINTER(base,mask,ent->v.model) ???")
-	MSG_WriteByte(&sv.signon, SV_ModelIndex((char *) VM_POINTER(base,mask,ent->v.model)));
+	MSG_WriteByte(&sv.signon, SV_ModelIndex((char *) VM_POINTER(base,mask,(uintptr_t)modelname)));
 
-	MSG_WriteByte(&sv.signon, ent->v.frame);
-	MSG_WriteByte(&sv.signon, ent->v.colormap);
-	MSG_WriteByte(&sv.signon, ent->v.skin);
+	MSG_WriteByte(&sv.signon, PR_GetEntityFloat(ent, frame));
+	MSG_WriteByte(&sv.signon, PR_GetEntityFloat(ent, colormap));
+	MSG_WriteByte(&sv.signon, PR_GetEntityFloat(ent, skin));
 	for (i = 0; i < 3; i++)
 	{
-		MSG_WriteCoord(&sv.signon, ent->v.origin[i]);
-		MSG_WriteAngle(&sv.signon, ent->v.angles[i]);
+		MSG_WriteCoord(&sv.signon, origin[i]);
+		MSG_WriteAngle(&sv.signon, angles[i]);
 	}
 
 	// throw the entity away now
@@ -1624,9 +1639,7 @@ PF2_setspawnparms
 */
 void PF2_setspawnparms(byte* base, uintptr_t mask, pr2val_t* stack, pr2val_t*retval)
 {
-	int			i;
-	//edict_t		*ent;
-	int			entnum=stack[0]._int;
+	int         entnum=stack[0]._int;
 	client_t	*client;
 
 	//ent = EDICT_NUM(entnum);
@@ -1637,8 +1650,22 @@ void PF2_setspawnparms(byte* base, uintptr_t mask, pr2val_t* stack, pr2val_t*ret
 	// copy spawn parms out of the client_t
 	client = svs.clients + (entnum - 1);
 
-	for (i = 0; i < NUM_SPAWN_PARMS; i++)
-		(&pr_global_struct->parm1)[i] = client->spawn_parms[i];
+	PR_SetGlobalFloat(parm1, client->spawn_parms[0]);
+	PR_SetGlobalFloat(parm2, client->spawn_parms[1]);
+	PR_SetGlobalFloat(parm3, client->spawn_parms[2]);
+	PR_SetGlobalFloat(parm4, client->spawn_parms[3]);
+	PR_SetGlobalFloat(parm5, client->spawn_parms[4]);
+	PR_SetGlobalFloat(parm6, client->spawn_parms[5]);
+	PR_SetGlobalFloat(parm7, client->spawn_parms[6]);
+	PR_SetGlobalFloat(parm8, client->spawn_parms[7]);
+	PR_SetGlobalFloat(parm9, client->spawn_parms[8]);
+	PR_SetGlobalFloat(parm10, client->spawn_parms[9]);
+	PR_SetGlobalFloat(parm11, client->spawn_parms[10]);
+	PR_SetGlobalFloat(parm12, client->spawn_parms[11]);
+	PR_SetGlobalFloat(parm13, client->spawn_parms[12]);
+	PR_SetGlobalFloat(parm14, client->spawn_parms[13]);
+	PR_SetGlobalFloat(parm15, client->spawn_parms[14]);
+	PR_SetGlobalFloat(parm16, client->spawn_parms[15]);
 }
 
 /*
@@ -2497,13 +2524,13 @@ void PF2_Add_Bot( byte * base, uintptr_t mask, pr2val_t * stack, pr2val_t * retv
 
 
 	newcl->edict = ent;
-	ent->v.colormap = edictnum;
+	PR_SetEntityFloat(ent, colormap, edictnum);
 	val = PR2_GetEdictFieldValue( ent, "isBot" );
 	if( val )
 		val->_int = 1;
 
 	// restore client name.
-	ent->v.netname = PR_SetString(newcl->name);
+	PR_SetEntityString(ent, netname, newcl->name);
 
 	memset( newcl->stats, 0, sizeof( newcl->stats ) );
 	SZ_Clear( &newcl->netchan.message );
@@ -2533,14 +2560,14 @@ void PF2_Add_Bot( byte * base, uintptr_t mask, pr2val_t * stack, pr2val_t * retv
 	retval->_int = edictnum;
 
 
-	old_self = pr_global_struct->self;
-	pr_global_struct->time = sv.time;
-	pr_global_struct->self = EDICT_TO_PROG(newcl->edict);
+	old_self = PR_GetGlobalInt(self);
+	PR_SetGlobalFloat(time, sv.time);
+	PR_SetGlobalInt(self, EDICT_TO_PROG(newcl->edict));
 
 	PR2_GameClientConnect(0);
 	PR2_GamePutClientInServer(0);
 
-	pr_global_struct->self = old_self;
+	PR_SetGlobalInt(self, old_self);
 
 }
 
@@ -2550,12 +2577,12 @@ void RemoveBot(client_t *cl)
 	if( !cl->isBot )
 		return;
 
-	pr_global_struct->self = EDICT_TO_PROG(cl->edict);
+	PR_SetGlobalInt(self, EDICT_TO_PROG(cl->edict));
 	if ( sv_vm )
 		PR2_GameClientDisconnect(0);
 
 	cl->old_frags = 0;
-	cl->edict->v.frags = 0.0;
+	PR_SetEntityFloat(cl->edict, frags, 0.0f);
 	cl->name[0] = 0;
 	cl->state = cs_free;
 
@@ -2584,12 +2611,11 @@ void PF2_Remove_Bot( byte * base, uintptr_t mask, pr2val_t * stack, pr2val_t * r
 		Con_Printf( "tried to remove a non-botclient %d \n", entnum );
 		return;
 	}
-	old_self = pr_global_struct->self; //save self
+	old_self = PR_GetGlobalInt(self); //save self
 
-	pr_global_struct->self = entnum;
+	PR_SetGlobalInt(self, entnum);
 	RemoveBot(cl);
-	pr_global_struct->self = old_self;
-
+	PR_SetGlobalInt(self, old_self);
 }
 
 void PF2_SetBotUserInfo( byte * base, uintptr_t mask, pr2val_t * stack, pr2val_t * retval )
@@ -2661,11 +2687,13 @@ void PF2_SetBotCMD( byte * base, uintptr_t mask, pr2val_t * stack, pr2val_t * re
 	cl->botcmd.upmove = stack[7]._int;
 	cl->botcmd.buttons = stack[8]._int;
 	cl->botcmd.impulse = stack[9]._int;
-	if ( cl->edict->v.fixangle)
+	if (PR_GetEntityFloat(cl->edict, fixangle))
 	{
-		VectorCopy(cl->edict->v.angles, cl->botcmd.angles);
+		float* angles = PR_GetEntityVector(cl->edict, angles);
+
+		VectorCopy(angles, cl->botcmd.angles);
 		cl->botcmd.angles[PITCH] *= -3;
-		cl->edict->v.fixangle = 0;
+		PR_SetEntityFloat(cl->edict, fixangle, 0);
 	}
 }
 
@@ -2717,10 +2745,18 @@ void PF2_QVMstrftime(byte* base, uintptr_t mask, pr2val_t* stack, pr2val_t*retva
 
 void PF2_makevectors(byte* base, uintptr_t mask, pr2val_t* stack, pr2val_t*retval)
 {
+	vec3_t v_forward = { 0 };
+	vec3_t v_right = { 0 };
+	vec3_t v_up = { 0 };
+
 	AngleVectors ((float *) VM_POINTER(base,mask,stack[0].string),
-		pr_global_struct->v_forward,
-		pr_global_struct->v_right,
-		pr_global_struct->v_up);
+		v_forward,
+		v_right,
+		v_up);
+
+	PR_SetGlobalVector(v_forward, v_forward);
+	PR_SetGlobalVector(v_right, v_right);
+	PR_SetGlobalVector(v_up, v_up);
 }
 
 // a la the ZQ_PAUSE QC extension
@@ -2779,8 +2815,8 @@ void PF2_SetUserInfo( byte * base, uintptr_t mask, pr2val_t * stack, pr2val_t * 
 
 	if( sv_vm )
 	{
-		pr_global_struct->time = sv.time;
-		pr_global_struct->self = EDICT_TO_PROG(cl->edict);
+		PR_SetGlobalFloat(time, sv.time);
+		PR_SetGlobalInt(self, EDICT_TO_PROG(cl->edict));
 
 		if( PR2_UserInfoChanged() )
 			return;

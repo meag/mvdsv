@@ -1232,7 +1232,9 @@ void NET_GetLocalAddress (int socket, netadr_t *out)
 	struct sockaddr_storage address;
 	size_t namelen;
 	netadr_t adr = {0};
+#ifndef SERVERONLY
 	qbool notvalid = false;
+#endif
 
 	strlcpy (buff, "localhost", sizeof (buff));
 	gethostname (buff, sizeof (buff));
@@ -1244,7 +1246,9 @@ void NET_GetLocalAddress (int socket, netadr_t *out)
 	namelen = sizeof(address);
 	if (getsockname (socket, (struct sockaddr *)&address, (socklen_t *)&namelen) == -1)
 	{
+#ifndef SERVERONLY
 		notvalid = true;
+#endif
 		NET_StringToSockaddr("0.0.0.0", (struct sockaddr_storage *)&address);
 //		Sys_Error ("NET_Init: getsockname:", strerror(qerrno));
 	}

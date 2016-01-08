@@ -88,4 +88,205 @@ int			ED2_FindFieldOffset(char *field);
 void 		PR2_InitProg();
 #define PR_InitProg PR2_InitProg
 
+// Getters & setters for PR2 - globals
+#ifndef PR2_ONLY
+void       PR2_SetStringByPointer(string_t* pr1, pr2_string_t* pr2, char* stringValue);
+void       PR2_SetIntByPointer(int* pr1, int* pr2, int intValue);
+void       PR2_SetFloatByPointer(float* pr1, float* pr2, float floatValue);
+void       PR2_SetVectorByPointer(vec3_t* pr1, vec3_t* pr2, vec3_t vectorValue);
+void       PR2_SetFuncByPointer(func_t* pr1, pr2_func_t* pr2, pr2_func_t funcValue);
+
+char*      PR2_GetStringByPointer(string_t* pr1, pr2_string_t* pr2);
+int        PR2_GetIntByPointer(int* pr1, int* pr2);
+float      PR2_GetFloatByPointer(float* pr1, float* pr2);
+float*     PR2_GetVectorByPointer(vec3_t* pr1, vec3_t* pr2);
+pr2_func_t PR2_GetFuncByPointer(func_t* pr1, pr2_func_t* pr2);
+
+#define PR_SetGlobalString(globalname,val) PR2_SetStringByPointer(&pr_global_struct->globalname, &((pr2_globalvars_t*)pr_global_struct)->globalname, val)
+#define PR_SetGlobalInt(globalname,val) PR2_SetIntByPointer(&pr_global_struct->globalname, &((pr2_globalvars_t*)pr_global_struct)->globalname, val)
+#define PR_SetGlobalFloat(globalname,val) PR2_SetFloatByPointer(&pr_global_struct->globalname, &((pr2_globalvars_t*)pr_global_struct)->globalname, val)
+#define PR_SetGlobalVector(globalname,val) PR2_SetVectorByPointer(&pr_global_struct->globalname, &((pr2_globalvars_t*)pr_global_struct)->globalname, val)
+#define PR_SetGlobalFunc(globalname,val) PR2_SetFuncByPointer(&pr_global_struct->globalname, &((pr2_globalvars_t*)pr_global_struct)->globalname, val)
+
+#define PR_GetGlobalString(globalname) PR2_GetStringByPointer(&pr_global_struct->globalname, &((pr2_globalvars_t*)pr_global_struct)->globalname)
+#define PR_GetGlobalInt(globalname) PR2_GetIntByPointer(&pr_global_struct->globalname, &((pr2_globalvars_t*)pr_global_struct)->globalname)
+#define PR_GetGlobalFloat(globalname) PR2_GetFloatByPointer(&pr_global_struct->globalname, &((pr2_globalvars_t*)pr_global_struct)->globalname)
+#define PR_GetGlobalVector(globalname) PR2_GetVectorByPointer(&pr_global_struct->globalname, &((pr2_globalvars_t*)pr_global_struct)->globalname)
+#define PR_GetGlobalFunc(globalname) PR2_GetFuncByPointer(&pr_global_struct->globalname, &((pr2_globalvars_t*)pr_global_struct)->globalname)
+
+// Getters & setters for PR2 - Entity fields
+#define PR_SetEntityString(ent,fieldname,val) PR2_SetStringByPointer(&ent->v.fieldname, &(*(pr2_entvars_t*)&ent->v).fieldname, val)
+#define PR_SetEntityInt(ent,fieldname,val) PR2_SetIntByPointer(&ent->v.fieldname, &(*(pr2_entvars_t*)&ent->v).fieldname, val)
+#define PR_SetEntityFloat(ent,fieldname,val) PR2_SetFloatByPointer(&ent->v.fieldname, &(*(pr2_entvars_t*)&ent->v).fieldname, val)
+#define PR_SetEntityVector(ent,fieldname,val) PR2_SetVectorByPointer(&ent->v.fieldname, &(*(pr2_entvars_t*)&ent->v).fieldname, val)
+#define PR_SetEntityFunc(ent,fieldname,val) PR2_SetFuncByPointer(&ent->v.fieldname, &(*(pr2_entvars_t*)&ent->v).fieldname, val)
+
+#define PR_GetEntityString(ent,fieldname) PR2_GetStringByPointer(&ent->v.fieldname, &(*(pr2_entvars_t*)&ent->v).fieldname)
+#define PR_GetEntityInt(ent,fieldname) PR2_GetIntByPointer(&ent->v.fieldname, &(*(pr2_entvars_t*)&ent->v).fieldname)
+#define PR_GetEntityFloat(ent,fieldname) PR2_GetFloatByPointer(&ent->v.fieldname, &(*(pr2_entvars_t*)&ent->v).fieldname)
+#define PR_GetEntityVector(ent,fieldname) PR2_GetVectorByPointer(&ent->v.fieldname, &(*(pr2_entvars_t*)&ent->v).fieldname)
+#define PR_GetEntityFunc(ent,fieldname) PR2_GetFuncByPointer(&ent->v.fieldname, &(*(pr2_entvars_t*)&ent->v).fieldname)
+#else
+#define PR_SetGlobalString(globalname,val) ((pr2_globalvars_t*)pr_global_struct)->globalname = PR2_SetString(val)
+#define PR_SetGlobalInt(globalname,val) ((pr2_globalvars_t*)pr_global_struct)->globalname = val
+#define PR_SetGlobalFloat(globalname,val) ((pr2_globalvars_t*)pr_global_struct)->globalname = val
+#define PR_SetGlobalVector(globalname,val) VectorCopy(val, ((pr2_globalvars_t*)pr_global_struct)->globalname)
+#define PR_SetGlobalFunc(globalname,val) ((pr2_globalvars_t*)pr_global_struct)->globalname = val
+
+#define PR_GetGlobalString(globalname) PR2_GetString(((pr2_globalvars_t*)pr_global_struct)->globalname)
+#define PR_GetGlobalInt(globalname) ((pr2_globalvars_t*)pr_global_struct)->globalname
+#define PR_GetGlobalFloat(globalname) ((pr2_globalvars_t*)pr_global_struct)->globalname
+#define PR_GetGlobalVector(globalname) ((pr2_globalvars_t*)pr_global_struct)->globalname
+#define PR_GetGlobalFunc(globalname) ((pr2_globalvars_t*)pr_global_struct)->globalname
+
+// Getters & setters for PR2 - Entity fields
+#define PR_SetEntityString(ent,fieldname,val) (*(pr2_entvars_t*)&ent->v).fieldname = PR2_SetString(val)
+#define PR_SetEntityInt(ent,fieldname,val) (*(pr2_entvars_t*)&ent->v).fieldname = val
+#define PR_SetEntityFloat(ent,fieldname,val) (*(pr2_entvars_t*)&ent->v).fieldname = val
+#define PR_SetEntityVector(ent,fieldname,val) VectorCopy(val, (*(pr2_entvars_t*)&ent->v).fieldname)
+#define PR_SetEntityFunc(ent,fieldname,val) (*(pr2_entvars_t*)&ent->v).fieldname = val
+
+#define PR_GetEntityString(ent,fieldname) PR2_GetString((*(pr2_entvars_t*)&ent->v).fieldname)
+#define PR_GetEntityInt(ent,fieldname) (*(pr2_entvars_t*)&ent->v).fieldname
+#define PR_GetEntityFloat(ent,fieldname) (*(pr2_entvars_t*)&ent->v).fieldname
+#define PR_GetEntityVector(ent,fieldname) (*(pr2_entvars_t*)&ent->v).fieldname
+#define PR_GetEntityFunc(ent,fieldname) (*(pr2_entvars_t*)&ent->v).fieldname
+#endif
+
+typedef struct
+{	int	    pad[28];
+	int	    self;
+	int	    other;
+	int	    world;
+	float	time;
+	float	frametime;
+	int	    newmis;
+	float	force_retouch;
+	pr2_string_t mapname;
+	float	serverflags;
+	float	total_secrets;
+	float	total_monsters;
+	float	found_secrets;
+	float	killed_monsters;
+	float	parm1;
+	float	parm2;
+	float	parm3;
+	float	parm4;
+	float	parm5;
+	float	parm6;
+	float	parm7;
+	float	parm8;
+	float	parm9;
+	float	parm10;
+	float	parm11;
+	float	parm12;
+	float	parm13;
+	float	parm14;
+	float	parm15;
+	float	parm16;
+	vec3_t	v_forward;
+	vec3_t	v_up;
+	vec3_t	v_right;
+	float	trace_allsolid;
+	float	trace_startsolid;
+	float	trace_fraction;
+	vec3_t	trace_endpos;
+	vec3_t	trace_plane_normal;
+	float	trace_plane_dist;
+	int	    trace_ent;
+	float	trace_inopen;
+	float	trace_inwater;
+	int	    msg_entity;
+	pr2_func_t	main;
+	pr2_func_t	StartFrame;
+	pr2_func_t	PlayerPreThink;
+	pr2_func_t	PlayerPostThink;
+	pr2_func_t	ClientKill;
+	pr2_func_t	ClientConnect;
+	pr2_func_t	PutClientInServer;
+	pr2_func_t	ClientDisconnect;
+	pr2_func_t	SetNewParms;
+	pr2_func_t	SetChangeParms;
+} pr2_globalvars_t;
+
+typedef struct
+{
+	float	modelindex;
+	vec3_t	absmin;
+	vec3_t	absmax;
+	float	ltime;
+	float	lastruntime;
+	float	movetype;
+	float	solid;
+	vec3_t	origin;
+	vec3_t	oldorigin;
+	vec3_t	velocity;
+	vec3_t	angles;
+	vec3_t	avelocity;
+	pr2_string_t	classname;
+	pr2_string_t	model;
+	float	frame;
+	float	skin;
+	float	effects;
+	vec3_t	mins;
+	vec3_t	maxs;
+	vec3_t	size;
+	pr2_func_t	touch;
+	pr2_func_t	use;
+	pr2_func_t	think;
+	pr2_func_t	blocked;
+	float	nextthink;
+	int	groundentity;
+	float	health;
+	float	frags;
+	float	weapon;
+	pr2_string_t	weaponmodel;
+	float	weaponframe;
+	float	currentammo;
+	float	ammo_shells;
+	float	ammo_nails;
+	float	ammo_rockets;
+	float	ammo_cells;
+	float	items;
+	float	takedamage;
+	int	chain;
+	float	deadflag;
+	vec3_t	view_ofs;
+	float	button0;
+	float	button1;
+	float	button2;
+	float	impulse;
+	float	fixangle;
+	vec3_t	v_angle;
+	pr2_string_t	netname;
+	int	enemy;
+	float	flags;
+	float	colormap;
+	float	team;
+	float	max_health;
+	float	teleport_time;
+	float	armortype;
+	float	armorvalue;
+	float	waterlevel;
+	float	watertype;
+	float	ideal_yaw;
+	float	yaw_speed;
+	int	aiment;
+	int	goalentity;
+	float	spawnflags;
+	pr2_string_t	target;
+	pr2_string_t	targetname;
+	float	dmg_take;
+	float	dmg_save;
+	int	dmg_inflictor;
+	int	owner;
+	vec3_t	movedir;
+	pr2_string_t	message;
+	float	sounds;
+	pr2_string_t	noise;
+	pr2_string_t	noise1;
+	pr2_string_t	noise2;
+	pr2_string_t	noise3;
+} pr2_entvars_t;
+
 #endif /* !__PR2_H__ */

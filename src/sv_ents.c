@@ -38,10 +38,12 @@ cvar_t	sv_nailhack	= {"sv_nailhack", "1"};
 
 static qbool SV_AddNailUpdate (edict_t *ent)
 {
+	int modelindex = PR_GetEntityFloat(ent, modelindex);
+
 	if ((int)sv_nailhack.value)
 		return false;
 
-	if (ent->v.modelindex != sv_nailmodel && ent->v.modelindex != sv_supernailmodel)
+	if (modelindex != sv_nailmodel && modelindex != sv_supernailmodel)
 		return false;
 
 	if (msg_coordsize != 2)
@@ -60,7 +62,8 @@ static void SV_EmitNailUpdate (sizebuf_t *msg, qbool recorder)
 	int x, y, z, p, yaw, n, i;
 	byte bits[6]; // [48 bits] xyzpy 12 12 12 4 8
 	edict_t *ent;
-
+	float* entOrigin = 0;
+	float* entAngles = 0;
 
 	if (!numnails)
 		return;
@@ -77,20 +80,23 @@ static void SV_EmitNailUpdate (sizebuf_t *msg, qbool recorder)
 		ent = nails[n];
 		if (recorder)
 		{
-			if (!ent->v.colormap)
+			if (!PR_GetEntityFloat(ent, colormap))
 			{
-				if (!((++nailcount)&255)) nailcount++;
-				ent->v.colormap = nailcount&255;
+				if (!((++nailcount)&255))
+					nailcount++;
+				PR_SetEntityFloat(ent, colormap, nailcount & 255);
 			}
 
-			MSG_WriteByte (msg, (byte)ent->v.colormap);
+			MSG_WriteByte (msg, (byte)PR_GetEntityFloat(ent, colormap));
 		}
 
-		x = ((int)(ent->v.origin[0] + 4096 + 1) >> 1) & 4095;
-		y = ((int)(ent->v.origin[1] + 4096 + 1) >> 1) & 4095;
-		z = ((int)(ent->v.origin[2] + 4096 + 1) >> 1) & 4095;
-		p = Q_rint(ent->v.angles[0]*(16.0/360.0)) & 15;
-		yaw = Q_rint(ent->v.angles[1]*(256.0/360.0)) & 255;
+		entOrigin = PR_GetEntityVector(ent, origin);
+		entAngles = PR_GetEntityVector(ent, angles);
+		x = ((int)(entOrigin[0] + 4096 + 1) >> 1) & 4095;
+		y = ((int)(entOrigin[1] + 4096 + 1) >> 1) & 4095;
+		z = ((int)(entOrigin[2] + 4096 + 1) >> 1) & 4095;
+		p = Q_rint(entAngles[0]*(16.0/360.0)) & 15;
+		yaw = Q_rint(entAngles[1]*(256.0/360.0)) & 255;
 
 		bits[0] = x;
 		bits[1] = (x>>8) | (y<<4);
@@ -286,13 +292,13 @@ static void SV_EmitPacketEntities (client_t *client, packet_entities_t *to, size
 
 static int TranslateEffects (edict_t *ent)
 {
-	int fx = (int)ent->v.effects;
+	int fx = (int)PR_GetEntityFloat(ent, effects);
 	if (pr_nqprogs)
 		fx &= ~EF_MUZZLEFLASH;
 	if (pr_nqprogs && (fx & EF_DIMLIGHT)) {
-		if ((int)ent->v.items & IT_QUAD)
+		if ((int)PR_GetEntityFloat(ent, items) & IT_QUAD)
 			fx |= EF_BLUE;
-		if ((int)ent->v.items & IT_INVULNERABILITY)
+		if ((int)PR_GetEntityFloat(ent, items) & IT_INVULNERABILITY)
 			fx |= EF_RED;
 	}
 	return fx;
@@ -318,33 +324,40 @@ static void SV_MVD_WritePlayersToClient ( void )
 
 	for (j = 0, cl = svs.clients, dcl = demo_frame->clients; j < MAX_CLIENTS; j++, cl++, dcl++)
 	{
+		float* entOrigin = 0;
+		float* entAngles = 0;
+		float* entViewAngles = 0;
+
 		if ( cl->state != cs_spawned || cl->spectator )
 			continue;
 
 		ent = cl->edict;
+		entOrigin = PR_GetEntityVector(ent, origin);
+		entAngles = PR_GetEntityVector(ent, angles);
+		entViewAngles = PR_GetEntityVector(ent, v_angle);
 
 		dcl->parsecount = demo.parsecount;
 
-		VectorCopy(ent->v.origin, dcl->origin);
-		VectorCopy(ent->v.angles, dcl->angles);
+		VectorCopy(entOrigin, dcl->origin);
+		VectorCopy(entAngles, dcl->angles);
 		dcl->angles[0] *= -3;
 #ifdef USE_PR2
 		if( cl->isBot )
-			VectorCopy(ent->v.v_angle, dcl->angles);
+			VectorCopy(entViewAngles, dcl->angles);
 #endif
 		dcl->angles[2] = 0; // no roll angle
 
-		if (ent->v.health <= 0)
+		if (PR_GetEntityFloat(ent, health) <= 0)
 		{	// don't show the corpse looking around...
 			dcl->angles[0] = 0;
-			dcl->angles[1] = ent->v.angles[1];
+			dcl->angles[1] = entAngles[1];
 			dcl->angles[2] = 0;
 		}
 
-		dcl->weaponframe = ent->v.weaponframe;
-		dcl->frame       = ent->v.frame;
-		dcl->skinnum     = ent->v.skin;
-		dcl->model       = ent->v.modelindex;
+		dcl->weaponframe = PR_GetEntityFloat(ent, weaponframe);
+		dcl->frame       = PR_GetEntityFloat(ent, frame);
+		dcl->skinnum     = PR_GetEntityFloat(ent, skin);
+		dcl->model       = PR_GetEntityFloat(ent, modelindex);
 		dcl->effects     = TranslateEffects(ent);
 		dcl->flags       = 0;
 
@@ -353,9 +366,9 @@ static void SV_MVD_WritePlayersToClient ( void )
 
 		dcl->sec         = sv.time - cl->localtime;
 		
-		if (ent->v.health <= 0)
+		if (PR_GetEntityFloat(ent, health) <= 0)
 			dcl->flags |= DF_DEAD;
-		if (ent->v.mins[2] != -24)
+		if (PR_GetEntityVector(ent, mins)[2] != -24)
 			dcl->flags |= DF_GIB;
 
 		continue;
@@ -394,6 +407,8 @@ static void SV_WritePlayersToClient (client_t *client, client_frame_t *frame, by
 		edict_t *	ent = NULL;
 		edict_t *	self_ent = NULL;
 		edict_t *	track_ent = NULL;
+		float *     entVelocity = NULL;
+		float *     entOrigin = NULL;
 
 		if (cl->state != cs_spawned)
 			continue;
@@ -448,18 +463,20 @@ static void SV_WritePlayersToClient (client_t *client, client_frame_t *frame, by
 
 		pflags = PF_MSEC | PF_COMMAND;
 
-		if (ent->v.modelindex != sv_playermodel)
+		entOrigin = PR_GetEntityVector(ent, origin);
+		entVelocity = PR_GetEntityVector(ent, velocity);
+		if (PR_GetEntityFloat(ent, modelindex) != sv_playermodel)
 			pflags |= PF_MODEL;
 		for (i=0 ; i<3 ; i++)
-			if (ent->v.velocity[i])
+			if (entVelocity[i])
 				pflags |= PF_VELOCITY1<<i;
-		if (ent->v.effects)
+		if (PR_GetEntityFloat(ent, effects))
 			pflags |= PF_EFFECTS;
-		if (ent->v.skin)
+		if (PR_GetEntityFloat(ent, skin))
 			pflags |= PF_SKINNUM;
-		if (ent->v.health <= 0)
+		if (PR_GetEntityFloat(ent, health) <= 0)
 			pflags |= PF_DEAD;
-		if (ent->v.mins[2] != -24)
+		if (PR_GetEntityVector(ent, mins)[2] != -24)
 			pflags |= PF_GIB;
 
 		if (cl->spectator)
@@ -469,7 +486,7 @@ static void SV_WritePlayersToClient (client_t *client, client_frame_t *frame, by
 		else if (ent == self_ent)
 		{	// don't send a lot of data on personal entity
 			pflags &= ~(PF_MSEC|PF_COMMAND);
-			if (ent->v.weaponframe)
+			if (PR_GetEntityFloat(ent, weaponframe))
 				pflags |= PF_WEAPONFRAME;
 		}
 
@@ -508,27 +525,28 @@ static void SV_WritePlayersToClient (client_t *client, client_frame_t *frame, by
 		pflags |= pm_code << PF_PMC_SHIFT;
 
 		// Z_EXT_PF_ONGROUND protocol extension
-		if ((int)ent->v.flags & FL_ONGROUND)
+		if ((int)PR_GetEntityFloat(ent, flags) & FL_ONGROUND)
 			pflags |= PF_ONGROUND;
 
 		// Z_EXT_PF_SOLID protocol extension
-		if (ent->v.solid == SOLID_BBOX || ent->v.solid == SOLID_SLIDEBOX)
+		if (PR_GetEntityFloat(ent, solid) == SOLID_BBOX || PR_GetEntityFloat(ent, solid) == SOLID_SLIDEBOX)
 			pflags |= PF_SOLID;
 
 		if (pm_type == PM_LOCK && ent == self_ent)
 			pflags |= PF_COMMAND;	// send forced view angles
 
-		if (client->spec_track && client->spec_track - 1 == j && ent->v.weaponframe)
+		if (client->spec_track && client->spec_track - 1 == j && PR_GetEntityFloat(ent, weaponframe))
 			pflags |= PF_WEAPONFRAME;
 
 		MSG_WriteByte (msg, svc_playerinfo);
 		MSG_WriteByte (msg, j);
 		MSG_WriteShort (msg, pflags);
 
+		entOrigin = PR_GetEntityVector(ent, origin);
 		for (i=0 ; i<3 ; i++)
-			MSG_WriteCoord (msg, ent->v.origin[i]);
+			MSG_WriteCoord (msg, entOrigin[i]);
 
-		MSG_WriteByte (msg, ent->v.frame);
+		MSG_WriteByte (msg, PR_GetEntityFloat(ent, frame));
 
 		if (pflags & PF_MSEC)
 		{
@@ -542,10 +560,10 @@ static void SV_WritePlayersToClient (client_t *client, client_frame_t *frame, by
 		{
 			cmd = cl->lastcmd;
 
-			if (ent->v.health <= 0)
+			if (PR_GetEntityFloat(ent, health) <= 0)
 			{	// don't show the corpse looking around...
 				cmd.angles[0] = 0;
-				cmd.angles[1] = ent->v.angles[1];
+				cmd.angles[1] = PR_GetEntityVector(ent, angles)[1];
 				cmd.angles[0] = 0;
 			}
 
@@ -554,8 +572,10 @@ static void SV_WritePlayersToClient (client_t *client, client_frame_t *frame, by
 
 			if (ent == self_ent)
 			{
+				float* viewAngles = PR_GetEntityVector(ent, v_angle);
+
 				// this is PM_LOCK, we only want to send view angles
-				VectorCopy(ent->v.v_angle, cmd.angles);
+				VectorCopy(viewAngles, cmd.angles);
 				cmd.forwardmove = 0;
 				cmd.sidemove = 0;
 				cmd.upmove = 0;
@@ -571,19 +591,19 @@ static void SV_WritePlayersToClient (client_t *client, client_frame_t *frame, by
 
 		for (i=0 ; i<3 ; i++)
 			if (pflags & (PF_VELOCITY1<<i) )
-				MSG_WriteShort (msg, ent->v.velocity[i]);
+				MSG_WriteShort (msg, entVelocity[i]);
 
 		if (pflags & PF_MODEL)
-			MSG_WriteByte (msg, ent->v.modelindex);
+			MSG_WriteByte (msg, PR_GetEntityFloat(ent, modelindex));
 
 		if (pflags & PF_SKINNUM)
-			MSG_WriteByte (msg, ent->v.skin);
+			MSG_WriteByte (msg, PR_GetEntityFloat(ent, skin));
 
 		if (pflags & PF_EFFECTS)
 			MSG_WriteByte (msg, TranslateEffects(ent));
 
 		if (pflags & PF_WEAPONFRAME)
-			MSG_WriteByte (msg, ent->v.weaponframe);
+			MSG_WriteByte (msg, PR_GetEntityFloat(ent, weaponframe));
 	}
 }
 
@@ -646,11 +666,17 @@ void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg, qbool recorder)
 		// we should use org of tracked player in case or trackent.
 		if (trackent)
 		{
-			VectorAdd (svs.clients[trackent - 1].edict->v.origin, svs.clients[trackent - 1].edict->v.view_ofs, org);		
+			float* origin = PR_GetEntityVector(svs.clients[trackent - 1].edict, origin);
+			float* viewOffset = PR_GetEntityVector(svs.clients[trackent - 1].edict, view_ofs);
+
+			VectorAdd (origin, viewOffset, org);
 		}
 		else
 		{
-			VectorAdd (client->edict->v.origin, client->edict->v.view_ofs, org);
+			float* origin = PR_GetEntityVector(client->edict, origin);
+			float* viewOffset = PR_GetEntityVector(client->edict, view_ofs);
+
+			VectorAdd (origin, viewOffset, org);
 		}
 
 		pvs = CM_FatPVS (org); // search some PVS
@@ -661,7 +687,7 @@ void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg, qbool recorder)
 			#define ISUNDERWATER(x) ((x) == CONTENTS_WATER || (x) == CONTENTS_SLIME || (x) == CONTENTS_LAVA)
 
 			// server flash should not work underwater
-			int content = CM_HullPointContents(&sv.worldmodel->hulls[0], 0, client->edict->v.origin);
+			int content = CM_HullPointContents(&sv.worldmodel->hulls[0], 0, PR_GetEntityVector(client->edict, origin));
 			disable_updates = !ISUNDERWATER(content);
 
 			#undef ISUNDERWATER
@@ -693,6 +719,9 @@ void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg, qbool recorder)
 
 		for (e = pr_nqprogs ? 1 : MAX_CLIENTS + 1, ent = EDICT_NUM(e); e < sv.num_edicts; e++, ent = NEXT_EDICT(ent))
 		{
+			float* origin = PR_GetEntityVector(ent, origin);
+			float* angles = PR_GetEntityVector(ent, angles);
+
 			if (pr_nqprogs)
 			{
 				// don't send the player's model to himself
@@ -701,7 +730,7 @@ void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg, qbool recorder)
 			}
 
 			// ignore ents without visible models
-			if (!ent->v.modelindex || !*PR_GetString(ent->v.model))
+			if (!PR_GetEntityFloat(ent, modelindex) || !*PR_GetEntityString(ent, model))
 				continue;
 
 			if (e == hideent)
@@ -730,12 +759,12 @@ void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg, qbool recorder)
 
 			state->number = e;
 			state->flags = 0;
-			VectorCopy (ent->v.origin, state->origin);
-			VectorCopy (ent->v.angles, state->angles);
-			state->modelindex = ent->v.modelindex;
-			state->frame = ent->v.frame;
-			state->colormap = ent->v.colormap;
-			state->skinnum = ent->v.skin;
+			VectorCopy (origin, state->origin);
+			VectorCopy (angles, state->angles);
+			state->modelindex = PR_GetEntityFloat(ent, modelindex);
+			state->frame = PR_GetEntityFloat(ent, frame);
+			state->colormap = PR_GetEntityFloat(ent, colormap);
+			state->skinnum = PR_GetEntityFloat(ent, skin);
 			state->effects = TranslateEffects(ent);
 		}
 	} // server flash
@@ -754,7 +783,7 @@ void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg, qbool recorder)
 		for (e=1, ent=EDICT_NUM(e) ; e < sv.num_edicts ; e++, ent = NEXT_EDICT(ent))
 		{
 			// ignore ents without visible models
-			if (!ent->v.modelindex || !*PR_GetString(ent->v.model))
+			if (!PR_GetEntityFloat(ent, modelindex) || !*PR_GetEntityString(ent, model))
 				continue;
 
 			// ignore if not touching a PV leaf
@@ -762,8 +791,8 @@ void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg, qbool recorder)
 				if (pvs[ent->e->leafnums[i] >> 3] & (1 << (ent->e->leafnums[i]&7) ))
 					break;
 
-			if ((int)ent->v.effects & EF_MUZZLEFLASH) {
-				ent->v.effects = (int)ent->v.effects & ~EF_MUZZLEFLASH;
+			if ((int)PR_GetEntityFloat(ent, effects) & EF_MUZZLEFLASH) {
+				PR_SetEntityFloat(ent, effects, (int)PR_GetEntityFloat(ent, effects) & ~EF_MUZZLEFLASH);
 				MSG_WriteByte (msg, svc_muzzleflash);
 				MSG_WriteShort (msg, e);
 			}

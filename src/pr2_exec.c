@@ -386,10 +386,10 @@ void PR2_GameConsoleCommand(void)
 
 	if( sv_vm )
 	{
-		old_self = pr_global_struct->self;
-		old_other = pr_global_struct->other;
-		pr_global_struct->other = 0; //sv_cmd = SV_CMD_CONSOLE;
-		pr_global_struct->self = 0;
+		old_self = PR_GetGlobalInt(self);
+		old_other = PR_GetGlobalInt(other);
+		PR_SetGlobalInt(other, 0); //sv_cmd = SV_CMD_CONSOLE;
+		PR_SetGlobalInt(self, 0);
 
 		for (i = 0, cl = svs.clients; i < MAX_CLIENTS; i++, cl++)
 		{
@@ -400,13 +400,13 @@ void PR2_GameConsoleCommand(void)
 
 			if (NET_CompareAdr(cl->netchan.remote_address, net_from))
 			{
-				pr_global_struct->self = EDICT_TO_PROG(cl->edict);
+				PR_SetGlobalInt(self, EDICT_TO_PROG(cl->edict));
 				break;
 			}
 		}
 		VM_Call(sv_vm, GAME_CONSOLE_COMMAND, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-		pr_global_struct->self = old_self;
-		pr_global_struct->other = old_other;
+		PR_SetGlobalInt(self, old_self);
+		PR_SetGlobalInt(other, old_other);
 	}
 }
 
@@ -419,6 +419,91 @@ void PR2_PausedTic(float duration)
 		VM_Call(sv_vm, GAME_PAUSED_TIC, duration*1000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 	else
 		PR1_PausedTic(duration);
+}
+
+void PR2_SetStringByPointer(string_t* pr1, pr2_string_t* pr2, char* stringValue)
+{
+	if (sv_vm && sv_vm->type != VM_NONE) {
+		*pr2 = PR2_SetString(stringValue);
+	}
+	else {
+		*pr1 = PR1_SetString(stringValue);
+	}
+}
+
+void PR2_SetFloatByPointer(float* pr1, float* pr2, float floatValue)
+{
+	if (sv_vm && sv_vm->type != VM_NONE) {
+		*pr2 = floatValue;
+	}
+	else {
+		*pr1 = floatValue;
+	}
+}
+
+void PR2_SetIntByPointer(int* pr1, int* pr2, int intValue)
+{
+	if (sv_vm && sv_vm->type != VM_NONE) {
+		*pr2 = intValue;
+	}
+	else {
+		*pr1 = intValue;
+	}
+}
+
+void PR2_SetVectorByPointer(vec3_t* pr1, vec3_t* pr2, vec3_t vectorValue)
+{
+	if (sv_vm && sv_vm->type != VM_NONE) {
+		VectorCopy(vectorValue, (*pr2));
+	}
+	else {
+		VectorCopy(vectorValue, (*pr1));
+	}
+}
+
+void PR2_SetFuncByPointer(func_t* pr1, pr2_func_t* pr2, pr2_func_t funcValue)
+{
+	if (sv_vm && sv_vm->type != VM_NONE) {
+		*pr2 = funcValue;
+	}
+	else {
+		*pr1 = (func_t) funcValue;
+	}
+}
+
+int PR2_GetIntByPointer(int* pr1, int* pr2)
+{
+	if (sv_vm && sv_vm->type != VM_NONE)
+		return *pr2;
+	return *pr1;
+}
+
+float PR2_GetFloatByPointer(float* pr1, float* pr2)
+{
+	if (sv_vm && sv_vm->type != VM_NONE)
+		return *pr2;
+	return *pr1;
+}
+
+float* PR2_GetVectorByPointer(vec3_t* pr1, vec3_t* pr2)
+{
+	if (sv_vm && sv_vm->type != VM_NONE)
+		return *pr2;
+	return *pr1;
+}
+
+pr2_func_t PR2_GetFuncByPointer(func_t* pr1, pr2_func_t* pr2)
+{
+	if (sv_vm && sv_vm->type != VM_NONE)
+		return *pr2;
+	return *pr1;
+}
+
+char* PR2_GetStringByPointer(string_t* pr1, pr2_string_t* pr2)
+{
+	if (sv_vm && sv_vm->type != VM_NONE)
+		return PR2_GetString(*pr2);
+	return PR1_GetString(*pr1);
 }
 
 #endif /* USE_PR2 */

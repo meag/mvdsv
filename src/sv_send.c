@@ -454,11 +454,17 @@ void SV_MulticastEx (vec3_t origin, int to, const char *cl_reliable_key)
 
 		if (trackent)
 		{
-			VectorAdd (svs.clients[trackent - 1].edict->v.origin, svs.clients[trackent - 1].edict->v.view_ofs, vieworg);
+			float* origin = PR_GetEntityVector(svs.clients[trackent - 1].edict, origin);
+			float* viewOffset = PR_GetEntityVector(svs.clients[trackent - 1].edict, view_ofs);
+
+			VectorAdd (origin, viewOffset, vieworg);
 		}
 		else
 		{
-			VectorAdd (client->edict->v.origin, client->edict->v.view_ofs, vieworg);
+			float* origin = PR_GetEntityVector(client->edict, origin);
+			float* viewOffset = PR_GetEntityVector(client->edict, view_ofs);
+
+			VectorAdd (origin, viewOffset, vieworg);
 		}
 
 		if (to == MULTICAST_PHS_R || to == MULTICAST_PHS)
@@ -631,14 +637,14 @@ void SV_StartSound (edict_t *entity, int channel, char *sample, int volume,
 		channel |= SND_ATTENUATION;
 
 	// use the entity origin unless it is a bmodel
-	if (entity->v.solid == SOLID_BSP)
+	if (PR_GetEntityFloat(entity, solid) == SOLID_BSP)
 	{
 		for (i=0 ; i<3 ; i++)
-			origin[i] = entity->v.origin[i]+0.5*(entity->v.mins[i]+entity->v.maxs[i]);
+			origin[i] = PR_GetEntityVector(entity, origin)[i]+0.5*(PR_GetEntityVector(entity, mins)[i]+PR_GetEntityVector(entity, maxs)[i]);
 	}
 	else
 	{
-		VectorCopy (entity->v.origin, origin);
+		VectorCopy (PR_GetEntityVector(entity, origin), origin);
 	}
 
 	MSG_WriteByte (&sv.multicast, svc_sound);
@@ -715,17 +721,17 @@ void SV_WriteClientdataToMessage (client_t *client, sizebuf_t *msg)
 	}
 
 	// send a damage message if the player got hit this frame
-	if (ent->v.dmg_take || ent->v.dmg_save)
+	if (PR_GetEntityFloat(ent, dmg_take) || PR_GetEntityFloat(ent, dmg_save))
 	{
-		other = PROG_TO_EDICT(ent->v.dmg_inflictor);
+		other = PROG_TO_EDICT(PR_GetEntityInt(ent, dmg_inflictor));
 		MSG_WriteByte (msg, svc_damage);
-		MSG_WriteByte (msg, ent->v.dmg_save);
-		MSG_WriteByte (msg, ent->v.dmg_take);
+		MSG_WriteByte (msg, PR_GetEntityFloat(ent, dmg_save));
+		MSG_WriteByte (msg, PR_GetEntityFloat(ent, dmg_take));
 		for (i=0 ; i<3 ; i++)
-			MSG_WriteCoord (msg, other->v.origin[i] + 0.5*(other->v.mins[i] + other->v.maxs[i]));
+			MSG_WriteCoord (msg, PR_GetEntityVector(other, origin)[i] + 0.5*(PR_GetEntityVector(other, mins)[i] + PR_GetEntityVector(other, maxs)[i]));
 
-		ent->v.dmg_take = 0;
-		ent->v.dmg_save = 0;
+		PR_SetEntityFloat(ent, dmg_take, 0);
+		PR_SetEntityFloat(ent, dmg_save, 0);
 	}
 
 	// add this to server demo
@@ -738,21 +744,21 @@ void SV_WriteClientdataToMessage (client_t *client, sizebuf_t *msg)
 	}
 
 	// a fixangle might get lost in a dropped packet.  Oh well.
-	if (ent->v.fixangle)
+	if (PR_GetEntityFloat(ent, fixangle))
 	{
-		ent->v.fixangle = 0;
+		PR_SetEntityFloat(ent, fixangle, 0);
 		demo.fixangle[clnum] = true;
 
 		MSG_WriteByte (msg, svc_setangle);
 		for (i=0 ; i < 3 ; i++)
-			MSG_WriteAngle (msg, ent->v.angles[i] );
+			MSG_WriteAngle (msg, PR_GetEntityVector(ent, angles)[i]);
 
 		if (sv.mvdrecording)
 		{
 			MSG_WriteByte (&demo.datagram, svc_setangle);
 			MSG_WriteByte (&demo.datagram, clnum);
 			for (i=0 ; i < 3 ; i++)
-				MSG_WriteAngle (&demo.datagram, ent->v.angles[i] );
+				MSG_WriteAngle (&demo.datagram, PR_GetEntityVector(ent, angles)[i]);
 		}
 	}
 
@@ -819,23 +825,23 @@ void SV_UpdateClientStats (client_t *client)
 			ent = svs.clients[trackent - 1].edict;
 	}
 
-	stats[STAT_HEALTH] = ent->v.health;
-	stats[STAT_WEAPON] = SV_ModelIndex(PR_GetString(ent->v.weaponmodel));
-	stats[STAT_AMMO] = ent->v.currentammo;
-	stats[STAT_ARMOR] = ent->v.armorvalue;
-	stats[STAT_SHELLS] = ent->v.ammo_shells;
-	stats[STAT_NAILS] = ent->v.ammo_nails;
-	stats[STAT_ROCKETS] = ent->v.ammo_rockets;
-	stats[STAT_CELLS] = ent->v.ammo_cells;
+	stats[STAT_HEALTH] = PR_GetEntityFloat(ent, health);
+	stats[STAT_WEAPON] = SV_ModelIndex(PR_GetEntityString(ent, weaponmodel));
+	stats[STAT_AMMO] = PR_GetEntityFloat(ent, currentammo);
+	stats[STAT_ARMOR] = PR_GetEntityFloat(ent, armorvalue);
+	stats[STAT_SHELLS] = PR_GetEntityFloat(ent, ammo_shells);
+	stats[STAT_NAILS] = PR_GetEntityFloat(ent, ammo_nails);
+	stats[STAT_ROCKETS] = PR_GetEntityFloat(ent, ammo_rockets);
+	stats[STAT_CELLS] = PR_GetEntityFloat(ent, ammo_cells);
 	if (!client->spectator || client->spec_track > 0)
-		stats[STAT_ACTIVEWEAPON] = ent->v.weapon;
+		stats[STAT_ACTIVEWEAPON] = PR_GetEntityFloat(ent, weapon);
 	// stuff the sigil bits into the high bits of items for sbar
-	stats[STAT_ITEMS] = (int) ent->v.items | ((int) PR_GLOBAL(serverflags) << 28);
+	stats[STAT_ITEMS] = (int) PR_GetEntityFloat(ent, items) | ((int) PR_GetGlobalFloat(serverflags) << 28);
 	if (fofs_items2)	// ZQ_ITEMS2 extension
 		stats[STAT_ITEMS] |= (int)EdictFieldFloat(ent, fofs_items2) << 23;
 
-	if (ent->v.health > 0 || client->spectator) // viewheight for PF_DEAD & PF_GIB is hardwired
-		stats[STAT_VIEWHEIGHT] = ent->v.view_ofs[2];
+	if (PR_GetEntityFloat(ent, health) > 0 || client->spectator) // viewheight for PF_DEAD & PF_GIB is hardwired
+		stats[STAT_VIEWHEIGHT] = PR_GetEntityVector(ent, view_ofs)[2];
 
 	for (i=0 ; i<MAX_CL_STATS ; i++)
 		if (stats[i] != client->stats[i])
@@ -944,7 +950,7 @@ static void SV_UpdateToReliableMessages (void)
 
 		ent = sv_client->edict;
 
-		if (sv_client->old_frags != (int)ent->v.frags)
+		if (sv_client->old_frags != (int)PR_GetEntityFloat(ent, frags))
 		{
 			for (j=0, client = svs.clients ; j<MAX_CLIENTS ; j++, client++)
 			{
@@ -952,7 +958,7 @@ static void SV_UpdateToReliableMessages (void)
 					continue;
 				ClientReliableWrite_Begin(client, svc_updatefrags, 4);
 				ClientReliableWrite_Byte(client, i);
-				ClientReliableWrite_Short(client, (int) ent->v.frags);
+				ClientReliableWrite_Short(client, (int) PR_GetEntityFloat(ent, frags));
 			}
 
 			if (sv.mvdrecording)
@@ -961,11 +967,11 @@ static void SV_UpdateToReliableMessages (void)
 				{
 					MVD_MSG_WriteByte(svc_updatefrags);
 					MVD_MSG_WriteByte(i);
-					MVD_MSG_WriteShort((int)ent->v.frags);
+					MVD_MSG_WriteShort((int)PR_GetEntityFloat(ent, frags));
 				}
 			}
 
-			sv_client->old_frags = (int) ent->v.frags;
+			sv_client->old_frags = (int)PR_GetEntityFloat(ent, frags);
 		}
 
 		// maxspeed/entgravity changes
@@ -1185,21 +1191,21 @@ void MVD_WriteStats(void)
 		ent = c->edict;
 		memset (stats, 0, sizeof(stats));
 
-		stats[STAT_HEALTH] = ent->v.health;
-		stats[STAT_WEAPON] = SV_ModelIndex(PR_GetString(ent->v.weaponmodel));
-		stats[STAT_AMMO] = ent->v.currentammo;
-		stats[STAT_ARMOR] = ent->v.armorvalue;
-		stats[STAT_SHELLS] = ent->v.ammo_shells;
-		stats[STAT_NAILS] = ent->v.ammo_nails;
-		stats[STAT_ROCKETS] = ent->v.ammo_rockets;
-		stats[STAT_CELLS] = ent->v.ammo_cells;
-		stats[STAT_ACTIVEWEAPON] = ent->v.weapon;
+		stats[STAT_HEALTH] = PR_GetEntityFloat(ent, health);
+		stats[STAT_WEAPON] = SV_ModelIndex(PR_GetEntityString(ent, weaponmodel));
+		stats[STAT_AMMO] = PR_GetEntityFloat(ent, currentammo);
+		stats[STAT_ARMOR] = PR_GetEntityFloat(ent, armorvalue);
+		stats[STAT_SHELLS] = PR_GetEntityFloat(ent, ammo_shells);
+		stats[STAT_NAILS] = PR_GetEntityFloat(ent, ammo_nails);
+		stats[STAT_ROCKETS] = PR_GetEntityFloat(ent, ammo_rockets);
+		stats[STAT_CELLS] = PR_GetEntityFloat(ent, ammo_cells);
+		stats[STAT_ACTIVEWEAPON] = PR_GetEntityFloat(ent, weapon);
 
-		if (ent->v.health > 0) // viewheight for PF_DEAD & PF_GIB is hardwired
-			stats[STAT_VIEWHEIGHT] = ent->v.view_ofs[2];
+		if (PR_GetEntityFloat(ent, health) > 0) // viewheight for PF_DEAD & PF_GIB is hardwired
+			stats[STAT_VIEWHEIGHT] = PR_GetEntityVector(ent, view_ofs)[2];
 
 		// stuff the sigil bits into the high bits of items for sbar
-		stats[STAT_ITEMS] = (int) ent->v.items | ((int) PR_GLOBAL(serverflags) << 28);
+		stats[STAT_ITEMS] = (int) PR_GetEntityFloat(ent, items) | ((int) PR_GetGlobalFloat(serverflags) << 28);
 
 		for (j = 0 ; j < MAX_CL_STATS; j++)
 		{

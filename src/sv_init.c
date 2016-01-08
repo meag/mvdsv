@@ -97,20 +97,21 @@ static void SV_CreateBaseline (void)
 	for (entnum = 0; entnum < sv.num_edicts ; entnum++)
 	{
 		svent = EDICT_NUM(entnum);
+
 		if (svent->e->free)
 			continue;
 		// create baselines for all player slots,
 		// and any other edict that has a visible model
-		if (entnum > MAX_CLIENTS && !svent->v.modelindex)
+		if (entnum > MAX_CLIENTS && !PR_GetEntityFloat(svent, modelindex))
 			continue;
 
 		//
 		// create entity baseline
 		//
-		VectorCopy (svent->v.origin, svent->e->baseline.origin);
-		VectorCopy (svent->v.angles, svent->e->baseline.angles);
-		svent->e->baseline.frame = svent->v.frame;
-		svent->e->baseline.skinnum = svent->v.skin;
+		VectorCopy (PR_GetEntityVector(svent, origin), svent->e->baseline.origin);
+		VectorCopy (PR_GetEntityVector(svent, angles), svent->e->baseline.angles);
+		svent->e->baseline.frame = PR_GetEntityFloat(svent, frame);
+		svent->e->baseline.skinnum = PR_GetEntityFloat(svent, skin);
 		if (entnum > 0 && entnum <= MAX_CLIENTS)
 		{
 			svent->e->baseline.colormap = entnum;
@@ -119,7 +120,7 @@ static void SV_CreateBaseline (void)
 		else
 		{
 			svent->e->baseline.colormap = 0;
-			svent->e->baseline.modelindex = SV_ModelIndex(PR_GetString(svent->v.model));
+			svent->e->baseline.modelindex = SV_ModelIndex(PR_GetEntityString(svent, model));
 		}
 
 		//
@@ -158,13 +159,13 @@ transition to another level
 */
 static void SV_SaveSpawnparms (void)
 {
-	int i, j;
+	int i;
 
 	if (!sv.state)
 		return;		// no progs loaded yet
 
 	// serverflags is the only game related thing maintained
-	svs.serverflags = PR_GLOBAL(serverflags);
+	svs.serverflags = PR_GetGlobalFloat(serverflags);
 
 	for (i=0, sv_client = svs.clients ; i<MAX_CLIENTS ; i++, sv_client++)
 	{
@@ -175,10 +176,25 @@ static void SV_SaveSpawnparms (void)
 		sv_client->state = cs_connected;
 
 		// call the progs to get default spawn parms for the new client
-		pr_global_struct->self = EDICT_TO_PROG(sv_client->edict);
+		PR_SetGlobalInt(self, EDICT_TO_PROG(sv_client->edict));
 		PR_GameSetChangeParms();
-		for (j=0 ; j<NUM_SPAWN_PARMS ; j++)
-			sv_client->spawn_parms[j] = (&PR_GLOBAL(parm1))[j];
+
+		sv_client->spawn_parms[0] = PR_GetGlobalFloat(parm1);
+		sv_client->spawn_parms[1] = PR_GetGlobalFloat(parm2);
+		sv_client->spawn_parms[2] = PR_GetGlobalFloat(parm3);
+		sv_client->spawn_parms[3] = PR_GetGlobalFloat(parm4);
+		sv_client->spawn_parms[4] = PR_GetGlobalFloat(parm5);
+		sv_client->spawn_parms[5] = PR_GetGlobalFloat(parm6);
+		sv_client->spawn_parms[6] = PR_GetGlobalFloat(parm7);
+		sv_client->spawn_parms[7] = PR_GetGlobalFloat(parm8);
+		sv_client->spawn_parms[8] = PR_GetGlobalFloat(parm9);
+		sv_client->spawn_parms[9] = PR_GetGlobalFloat(parm10);
+		sv_client->spawn_parms[10] = PR_GetGlobalFloat(parm11);
+		sv_client->spawn_parms[11] = PR_GetGlobalFloat(parm12);
+		sv_client->spawn_parms[12] = PR_GetGlobalFloat(parm13);
+		sv_client->spawn_parms[13] = PR_GetGlobalFloat(parm14);
+		sv_client->spawn_parms[14] = PR_GetGlobalFloat(parm15);
+		sv_client->spawn_parms[15] = PR_GetGlobalFloat(parm16);
 	}
 }
 
@@ -254,7 +270,7 @@ void SV_SpawnServer (char *mapname, qbool devmap, char* entityfile)
 		if( sv_vm && svs.clients[i].isBot )
 		{
 			svs.clients[i].old_frags = 0;
-			svs.clients[i].edict->v.frags = 0.0;
+			PR_SetEntityFloat(svs.clients[i].edict, frags, 0.0f);
 			svs.clients[i].name[0] = 0;
 			svs.clients[i].state = cs_free;
 			Info_RemoveAll(&svs.clients[i]._userinfo_ctx_);
@@ -380,7 +396,7 @@ void SV_SpawnServer (char *mapname, qbool devmap, char* entityfile)
 	{
 		ent = EDICT_NUM(i+1);
 		// restore client name.
-		ent->v.netname = PR_SetString(svs.clients[i].name);
+		PR_SetEntityString(ent, netname, svs.clients[i].name);
 		// reserve edict.
 		svs.clients[i].edict = ent;
 		//ZOID - make sure we update frags right
@@ -454,20 +470,20 @@ void SV_SpawnServer (char *mapname, qbool devmap, char* entityfile)
 
 	ent = EDICT_NUM(0);
 	ent->e->free = false;
-	ent->v.model = PR_SetString(sv.modelname);
-	ent->v.modelindex = 1;		// world model
-	ent->v.solid = SOLID_BSP;
-	ent->v.movetype = MOVETYPE_PUSH;
+	PR_SetEntityString(ent, model, sv.modelname);
+	PR_SetEntityFloat(ent, modelindex, 1);		// world model
+	PR_SetEntityFloat(ent, solid, SOLID_BSP);
+	PR_SetEntityFloat(ent, movetype, MOVETYPE_PUSH);
 
 	// information about the server
-	ent->v.netname = PR_SetString(VersionStringFull());
-	ent->v.targetname = PR_SetString(SERVER_NAME);
-	ent->v.impulse = VERSION_NUM;
-	ent->v.items = pr_numbuiltins - 1;
+	PR_SetEntityString(ent, netname, VersionStringFull());
+	PR_SetEntityString(ent, targetname, SERVER_NAME);
+	PR_SetEntityFloat(ent, impulse, VERSION_NUM);
+	PR_SetEntityFloat(ent, items, pr_numbuiltins - 1);
 
-	PR_GLOBAL(mapname) = PR_SetString(sv.mapname);
+	PR_SetGlobalString(mapname, sv.mapname);
 	// serverflags are for cross level information (sigils)
-	PR_GLOBAL(serverflags) = svs.serverflags;
+	PR_SetGlobalFloat(serverflags, svs.serverflags);
 	if (pr_nqprogs)
 	{
 		pr_globals[35] = deathmatch.value;
@@ -551,8 +567,8 @@ void SV_SpawnServer (char *mapname, qbool devmap, char* entityfile)
 	// calltimeofday.
 	{
 		extern void PF_calltimeofday (void);
-		pr_global_struct->time = sv.time;
-		pr_global_struct->self = 0;
+		PR_SetGlobalFloat(time, sv.time);
+		PR_SetGlobalInt(self, 0);
 
 		PF_calltimeofday();
 	}
