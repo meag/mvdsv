@@ -280,6 +280,8 @@ void SV_DoBroadcastPrintf (int level, int flags, char *string)
 				continue;
 			if (cl->state < cs_connected)
 				continue;
+			if (cl->isBot)
+				continue;
 
 			SV_PrintToClient(cl, level, string); // this does't go to mvd demo
 		}
@@ -439,6 +441,9 @@ void SV_MulticastEx (vec3_t origin, int to, const char *cl_reliable_key)
 		int trackent = 0;
 
 		if (client->state != cs_spawned)
+			continue;
+
+		if (client->isBot)
 			continue;
 
 		if (!mask)

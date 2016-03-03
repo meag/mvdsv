@@ -25,6 +25,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // check to see if client block will fit, if not, rotate buffers
 void ClientReliableCheckBlock(client_t *cl, int maxsize)
 {
+	if (cl->isBot)
+		return;
+
 	if (cl->num_backbuf
 		|| cl->netchan.message.cursize > cl->netchan.message.maxsize - maxsize - 1)
 	{
@@ -51,12 +54,18 @@ void ClientReliableCheckBlock(client_t *cl, int maxsize)
 // begin a client block, estimated maximum size
 void ClientReliableWrite_Begin(client_t *cl, int c, int maxsize)
 {
+	if (cl->isBot)
+		return;
+
 	ClientReliableCheckBlock(cl, maxsize);
 	ClientReliableWrite_Byte(cl, c);
 }
 
 void ClientReliable_FinishWrite(client_t *cl)
 {
+	if (cl->isBot)
+		return;
+
 	if (cl->num_backbuf)
 	{
 		cl->backbuf_size[cl->num_backbuf - 1] = cl->backbuf.cursize;
@@ -71,6 +80,9 @@ void ClientReliable_FinishWrite(client_t *cl)
 
 void ClientReliableWrite_Angle(client_t *cl, float f)
 {
+	if (cl->isBot)
+		return;
+
 	if (cl->num_backbuf)
 	{
 		MSG_WriteAngle(&cl->backbuf, f);
@@ -82,6 +94,9 @@ void ClientReliableWrite_Angle(client_t *cl, float f)
 
 void ClientReliableWrite_Angle16(client_t *cl, float f)
 {
+	if (cl->isBot)
+		return;
+
 	if (cl->num_backbuf)
 	{
 		MSG_WriteAngle16(&cl->backbuf, f);
@@ -93,6 +108,9 @@ void ClientReliableWrite_Angle16(client_t *cl, float f)
 
 void ClientReliableWrite_Byte(client_t *cl, int c)
 {
+	if (cl->isBot)
+		return;
+
 	if (cl->num_backbuf)
 	{
 		MSG_WriteByte(&cl->backbuf, c);
@@ -104,6 +122,9 @@ void ClientReliableWrite_Byte(client_t *cl, int c)
 
 void ClientReliableWrite_Char(client_t *cl, int c)
 {
+	if (cl->isBot)
+		return;
+
 	if (cl->num_backbuf)
 	{
 		MSG_WriteChar(&cl->backbuf, c);
@@ -115,6 +136,9 @@ void ClientReliableWrite_Char(client_t *cl, int c)
 
 void ClientReliableWrite_Float(client_t *cl, float f)
 {
+	if (cl->isBot)
+		return;
+
 	if (cl->num_backbuf)
 	{
 		MSG_WriteFloat(&cl->backbuf, f);
@@ -126,6 +150,9 @@ void ClientReliableWrite_Float(client_t *cl, float f)
 
 void ClientReliableWrite_Coord(client_t *cl, float f)
 {
+	if (cl->isBot)
+		return;
+
 	if (cl->num_backbuf)
 	{
 		MSG_WriteCoord(&cl->backbuf, f);
@@ -137,6 +164,9 @@ void ClientReliableWrite_Coord(client_t *cl, float f)
 
 void ClientReliableWrite_Long(client_t *cl, int c)
 {
+	if (cl->isBot)
+		return;
+
 	if (cl->num_backbuf)
 	{
 		MSG_WriteLong(&cl->backbuf, c);
@@ -148,6 +178,9 @@ void ClientReliableWrite_Long(client_t *cl, int c)
 
 void ClientReliableWrite_Short(client_t *cl, int c)
 {
+	if (cl->isBot)
+		return;
+
 	if (cl->num_backbuf)
 	{
 		MSG_WriteShort(&cl->backbuf, c);
@@ -159,6 +192,9 @@ void ClientReliableWrite_Short(client_t *cl, int c)
 
 void ClientReliableWrite_String(client_t *cl, char *s)
 {
+	if (cl->isBot)
+		return;
+
 	if (cl->num_backbuf)
 	{
 		MSG_WriteString(&cl->backbuf, s);
@@ -170,6 +206,9 @@ void ClientReliableWrite_String(client_t *cl, char *s)
 
 void ClientReliableWrite_SZ(client_t *cl, void *data, int len)
 {
+	if (cl->isBot)
+		return;
+
 	if (cl->num_backbuf)
 	{
 		SZ_Write(&cl->backbuf, data, len);

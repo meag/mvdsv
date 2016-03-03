@@ -3184,7 +3184,7 @@ void SV_RunCmd (usercmd_t *ucmd, qbool inside) //bliP: 24/9
 	//bliP: 24/9 anti speed ->
 	int tmp_time;
 
-	if (!inside && (int)sv_speedcheck.value)
+	if (!inside && (int)sv_speedcheck.value && !sv_client->isBot)
 	{
 		/* AM101 method */
 		tmp_time = Q_rint((realtime - sv_client->last_check) * 1000); // ie. Old 'timepassed'

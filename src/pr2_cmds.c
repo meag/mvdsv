@@ -24,6 +24,8 @@
 
 #include "qwsvdef.h"
 
+#define SETUSERINFO_STAR          (1<<0) // allow set star keys
+
 char	*pr2_ent_data_ptr;
 vm_t	*sv_vm = NULL;
 
@@ -317,7 +319,7 @@ void PF2_sprint(byte* base, uintptr_t mask, pr2val_t* stack, pr2val_t*retval)
 	client = &svs.clients[entnum - 1];
 
 	// do not print to client in such state
-	if (client->state < cs_connected)
+	if (client->state < cs_connected || client->isBot)
 		return;
 
 	if (flags & SPRINT_IGNOREINDEMO)
@@ -368,6 +370,9 @@ void PF2_centerprint(byte* base, uintptr_t mask, pr2val_t* stack, pr2val_t*retva
 	}
 
 	cl = &svs.clients[entnum - 1];
+
+	if (cl->isBot)
+		return;
 
 	ClientReliableWrite_Begin(cl, svc_centerprint, 2 + strlen(s));
 	ClientReliableWrite_String(cl, s);
@@ -738,6 +743,9 @@ void PF2_stuffcmd(byte* base, uintptr_t mask, pr2val_t* stack, pr2val_t*retval)
 
 
 	cl = &svs.clients[entnum - 1];
+	if (cl->isBot)
+		return;
+
 	if (!strncmp(str, "disconnect\n", MAX_STUFFTEXT))
 	{
 		// so long and thanks for all the fish
@@ -1402,6 +1410,9 @@ void PF2_WriteByte(byte* base, uintptr_t mask, pr2val_t* stack, pr2val_t*retval)
 	if (to == MSG_ONE)
 	{
 		client_t *cl = Write_GetClient();
+		if (cl->isBot)
+			return;
+
 		ClientReliableCheckBlock(cl, 1);
 		ClientReliableWrite_Byte(cl, data);
 		if (sv.mvdrecording)
@@ -1424,6 +1435,8 @@ void PF2_WriteChar(byte* base, uintptr_t mask, pr2val_t* stack, pr2val_t*retval)
 	if (to == MSG_ONE)
 	{
 		client_t *cl = Write_GetClient();
+		if (cl->isBot)
+			return;
 		ClientReliableCheckBlock(cl, 1);
 		ClientReliableWrite_Char(cl, data);
 		if (sv.mvdrecording)
@@ -1446,6 +1459,8 @@ void PF2_WriteShort(byte* base, uintptr_t mask, pr2val_t* stack, pr2val_t*retval
 	if (to == MSG_ONE)
 	{
 		client_t *cl = Write_GetClient();
+		if (cl->isBot)
+			return;
 		ClientReliableCheckBlock(cl, 2);
 		ClientReliableWrite_Short(cl, data);
 		if (sv.mvdrecording)
@@ -1468,6 +1483,8 @@ void PF2_WriteLong(byte* base, uintptr_t mask, pr2val_t* stack, pr2val_t*retval)
 	if (to == MSG_ONE)
 	{
 		client_t *cl = Write_GetClient();
+		if (cl->isBot)
+			return;
 		ClientReliableCheckBlock(cl, 4);
 		ClientReliableWrite_Long(cl, data);
 		if (sv.mvdrecording)
@@ -1495,6 +1512,8 @@ void PF2_WriteAngle(byte* base, uintptr_t mask, pr2val_t* stack, pr2val_t*retval
 		int size = 1;
 #endif
 		client_t *cl = Write_GetClient();
+		if (cl->isBot)
+			return;
 		ClientReliableCheckBlock(cl, size);
 		ClientReliableWrite_Angle(cl, data);
 		if (sv.mvdrecording)
@@ -1522,6 +1541,8 @@ void PF2_WriteCoord(byte* base, uintptr_t mask, pr2val_t* stack, pr2val_t*retval
 		int size = 2;
 #endif
 		client_t *cl = Write_GetClient();
+		if (cl->isBot)
+			return;
 		ClientReliableCheckBlock(cl, size);
 		ClientReliableWrite_Coord(cl, data);
 		if (sv.mvdrecording)
@@ -1544,6 +1565,8 @@ void PF2_WriteString(byte* base, uintptr_t mask, pr2val_t* stack, pr2val_t*retva
 	if (to == MSG_ONE)
 	{
 		client_t *cl = Write_GetClient();
+		if (cl->isBot)
+			return;
 		ClientReliableCheckBlock(cl, 1 + strlen(data));
 		ClientReliableWrite_String(cl, data);
 		if (sv.mvdrecording)
@@ -1567,6 +1590,8 @@ void PF2_WriteEntity(byte* base, uintptr_t mask, pr2val_t* stack, pr2val_t*retva
 	if (to == MSG_ONE)
 	{
 		client_t *cl = Write_GetClient();
+		if (cl->isBot)
+			return;
 		ClientReliableCheckBlock(cl, 2);
 		ClientReliableWrite_Short(cl,data );//G_EDICTNUM(OFS_PARM1)
 		if (sv.mvdrecording)
@@ -2465,6 +2490,7 @@ void PF2_Add_Bot( byte * base, uintptr_t mask, pr2val_t * stack, pr2val_t * retv
 		return;
 	}
 
+	memset (newcl, 0, sizeof (*newcl));
 	edictnum = ( newcl - svs.clients ) + 1;
 	ent = EDICT_NUM( edictnum );
 	ED_ClearEdict(ent);
@@ -2476,6 +2502,8 @@ void PF2_Add_Bot( byte * base, uintptr_t mask, pr2val_t * stack, pr2val_t * retv
 	          "\\name\\%s\\topcolor\\%d\\bottomcolor\\%d\\emodel\\6967\\pmodel\\13845\\skin\\%s\\*bot\\1",
 	          name, topcolor, bottomcolor, skin );
 
+	newcl->_userinfo_ctx_.max      = MAX_CLIENT_INFOS;
+	newcl->_userinfoshort_ctx_.max = MAX_CLIENT_INFOS;
 	Info_Convert(&newcl->_userinfo_ctx_, info);
 
 	newcl->state = cs_spawned;
@@ -2485,6 +2513,7 @@ void PF2_Add_Bot( byte * base, uintptr_t mask, pr2val_t * stack, pr2val_t * retv
 	newcl->datagram.maxsize = sizeof( newcl->datagram_buf );
 	newcl->spectator = 0;
 	newcl->isBot = 1;
+	strlcpy(newcl->name, name, sizeof(newcl->name));
 
 	newcl->entgravity = 1.0;
 	val = PR2_GetEdictFieldValue( ent, "gravity" );
@@ -2512,7 +2541,6 @@ void PF2_Add_Bot( byte * base, uintptr_t mask, pr2val_t * stack, pr2val_t * retv
 
 	// copy the most important userinfo into userinfoshort
 	// {
-
 	SV_ExtractFromUserinfo( newcl, true );
 
 	for ( i = 0; shortinfotbl[i] != NULL; i++ )
@@ -2598,6 +2626,7 @@ void PF2_SetBotUserInfo( byte * base, uintptr_t mask, pr2val_t * stack, pr2val_t
 	int     entnum = stack[0]._int;
 	char   *key = (char *) VM_POINTER( base, mask, stack[1].string );
 	char   *value = (char *) VM_POINTER( base, mask, stack[2].string );
+	int    flags = stack[3]._int;
 	int     i;
 	extern char *shortinfotbl[];
 
@@ -2615,7 +2644,11 @@ void PF2_SetBotUserInfo( byte * base, uintptr_t mask, pr2val_t * stack, pr2val_t
 		Con_Printf( "tried to change userinfo a non-botclient %d \n", entnum );
 		return;
 	}
-	Info_Set( &cl->_userinfo_ctx_, key, value );
+
+	if ( flags & SETUSERINFO_STAR )
+		Info_SetStar( &cl->_userinfo_ctx_, key, value );
+	else
+		Info_Set( &cl->_userinfo_ctx_, key, value );
 	SV_ExtractFromUserinfo( cl, !strcmp( key, "name" ) );
 
 	for ( i = 0; shortinfotbl[i] != NULL; i++ )
@@ -2733,8 +2766,6 @@ void PF2_setpause(byte* base, uintptr_t mask, pr2val_t* stack, pr2val_t*retval)
 	if (pause != (sv.paused & 1))
 		SV_TogglePause (NULL, 1);
 }
-
-#define SETUSERINFO_STAR          (1<<0) // allow set star keys
 
 void PF2_SetUserInfo( byte * base, uintptr_t mask, pr2val_t * stack, pr2val_t * retval )
 {
