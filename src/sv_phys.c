@@ -1021,6 +1021,7 @@ void SV_Physics (void)
 	//
 	for ( i = 0, cl = svs.clients; i < MAX_CLIENTS; i++, cl++ )
 	{
+		extern void AntilagStorePositions (client_t* cl, float target_time);
 		extern void SV_PreRunCmd(void);
 		extern void SV_RunCmd (usercmd_t *ucmd, qbool inside, qbool simulate);
 		extern void SV_PostRunCmd(void);
@@ -1029,6 +1030,8 @@ void SV_Physics (void)
 			continue;
 		if ( !cl->isBot )
 			continue;
+
+		AntilagStorePositions (cl, sv.time - 0.012);
 
 		sv_client = cl;
 		sv_player = cl->edict;

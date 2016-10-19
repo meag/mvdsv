@@ -509,7 +509,7 @@ void PF2_traceline(byte* base, uintptr_t mask, pr2val_t* stack, pr2val_t*retval)
 
 	if (sv_antilag.value == 2)
 	{
-		if (! (entnum >= 1 && entnum <= MAX_CLIENTS && svs.clients[entnum - 1].isBot))
+		//if (! (entnum >= 1 && entnum <= MAX_CLIENTS && svs.clients[entnum - 1].isBot))
 			nomonsters |= MOVE_LAGGED;
 	}
 
