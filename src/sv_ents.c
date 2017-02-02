@@ -407,6 +407,7 @@ static void SV_WritePlayersToClient (client_t *client, client_frame_t *frame, by
 	usercmd_t cmd;
 	int hideent = 0;
 	int trackent = 0;
+	qbool hide_players = fofs_hide_players && ((eval_t *)((byte *)&(client->edict)->v + fofs_hide_players))->_int;
 
 	if (fofs_hideentity)
 		hideent = ((eval_t *)((byte *)&(client->edict)->v + fofs_hideentity))->_int / pr_edict_size;
@@ -422,12 +423,15 @@ static void SV_WritePlayersToClient (client_t *client, client_frame_t *frame, by
 
 	for (j = 0; j < MAX_CLIENTS; j++)
 	{
-		client_t *	cl = &svs.clients[j];
-		edict_t *	ent = NULL;
-		edict_t *	self_ent = NULL;
-		edict_t *	track_ent = NULL;
+		client_t*   cl = &svs.clients[j];
+		edict_t*    ent = NULL;
+		edict_t*    self_ent = NULL;
+		edict_t*    track_ent = NULL;
 
 		if (cl->state != cs_spawned)
+			continue;
+
+		if (client != cl && hide_players)
 			continue;
 
 		if (trackent && cl == client)
@@ -442,13 +446,13 @@ static void SV_WritePlayersToClient (client_t *client, client_frame_t *frame, by
 		else
 		{
 			self_ent = client->edict;
-			ent = cl->edict;		
+			ent = cl->edict;
 		}
 
-		if (cl - svs.clients == hideent - 1)
+		if (j == hideent - 1)
 			continue;
 
-		if (cl - svs.clients == trackent - 1)
+		if (j == trackent - 1)
 			continue;
 
 		// set up edicts.
