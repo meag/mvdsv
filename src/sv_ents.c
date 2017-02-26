@@ -445,6 +445,11 @@ static void SV_WritePlayersToClient (client_t *client, client_frame_t *frame, by
 		edict_t*    self_ent = NULL;
 		edict_t*    track_ent = NULL;
 
+		if (fofs_visibility) {
+			// Presume not visible
+			((eval_t *)((byte *)&(cl->edict)->v + fofs_visibility))->_int &= ~(1 << (client - svs.clients));
+		}
+
 		if (cl->state != cs_spawned)
 			continue;
 
@@ -466,14 +471,19 @@ static void SV_WritePlayersToClient (client_t *client, client_frame_t *frame, by
 			ent = cl->edict;
 		}
 
+		// set up edicts.
+		if (!SV_PlayerVisibleToClient (client, j, pvs, self_ent, ent))
+			continue;
+
+		if (fofs_visibility) {
+			// Update flags so mods can tell what was visible
+			((eval_t *)((byte *)&(ent)->v + fofs_visibility))->_int |= (1 << (client - svs.clients));
+		}
+
 		if (j == hideent - 1)
 			continue;
 
 		if (j == trackent - 1)
-			continue;
-
-		// set up edicts.
-		if (!SV_PlayerVisibleToClient (client, j, pvs, self_ent, ent))
 			continue;
 
 		if (disable_updates && ent != self_ent)
@@ -630,10 +640,6 @@ static void SV_WritePlayersToClient (client_t *client, client_frame_t *frame, by
 
 		if (pflags & PF_WEAPONFRAME)
 			MSG_WriteByte (msg, ent->v.weaponframe);
-
-		// Update flags so mods can tell what was visible
-		if (fofs_visibility)
-			((eval_t *)((byte *)&(ent)->v + fofs_visibility))->_int |= (1 << (client - svs.clients));
 	}
 }
 
@@ -694,6 +700,7 @@ void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg, qbool recorder)
 	edict_t *ent;
 	byte *pvs;
 	int hideent;
+	unsigned int client_flag = (1 << (client - svs.clients));
 
 	if ( recorder )
 	{
@@ -779,11 +786,21 @@ void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg, qbool recorder)
 
 		for (e = pr_nqprogs ? 1 : MAX_CLIENTS + 1, ent = EDICT_NUM(e); e < sv.num_edicts; e++, ent = NEXT_EDICT(ent))
 		{
-			if (e == hideent)
+			if (!SV_EntityVisibleToClient(client, e, pvs)) {
+				if (fofs_visibility) {
+					((eval_t *)((byte *)&(ent)->v + fofs_visibility))->_int &= ~client_flag;
+				}
 				continue;
+			}
 
-			if (!SV_EntityVisibleToClient (client, e, pvs))
+			if (fofs_visibility) {
+				// Don't include other filters in logic for setting this field
+				((eval_t *)((byte *)&(ent)->v + fofs_visibility))->_int |= (1 << (client - svs.clients));
+			}
+
+			if (e == hideent) {
 				continue;
+			}
 
 			if (SV_AddNailUpdate (ent))
 				continue; // added to the special update list
@@ -804,9 +821,6 @@ void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg, qbool recorder)
 			state->colormap = ent->v.colormap;
 			state->skinnum = ent->v.skin;
 			state->effects = TranslateEffects(ent);
-
-			if (fofs_visibility)
-				((eval_t *)((byte *)&(ent)->v + fofs_visibility))->_int |= (1 << (client - svs.clients));
 		}
 	} // server flash
 
@@ -860,11 +874,15 @@ void SV_SetVisibleEntitiesForBot (client_t* client)
 	VectorAdd (client->edict->v.origin, client->edict->v.view_ofs, org);
 	pvs = CM_FatPVS (org); // search some PVS
 
-						   // players first
+	// players first
 	for (j = 0; j < MAX_CLIENTS; j++)
 	{
-		if (SV_PlayerVisibleToClient (client, j, pvs, client->edict, svs.clients[j].edict))
+		if (SV_PlayerVisibleToClient(client, j, pvs, client->edict, svs.clients[j].edict)) {
 			((eval_t *)((byte *)&(svs.clients[j].edict)->v + fofs_visibility))->_int |= client_flag;
+		}
+		else {
+			((eval_t *)((byte *)&(svs.clients[j].edict)->v + fofs_visibility))->_int &= ~client_flag;
+		}
 	}
 
 	// Other entities
@@ -872,7 +890,11 @@ void SV_SetVisibleEntitiesForBot (client_t* client)
 	{
 		edict_t* ent = EDICT_NUM (e);
 
-		if (SV_EntityVisibleToClient (client, e, pvs))
+		if (SV_EntityVisibleToClient(client, e, pvs)) {
 			((eval_t *)((byte *)&(ent)->v + fofs_visibility))->_int |= client_flag;
+		}
+		else {
+			((eval_t *)((byte *)&(ent)->v + fofs_visibility))->_int &= ~client_flag;
+		}
 	}
 }
