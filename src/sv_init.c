@@ -109,6 +109,7 @@ static void SV_CreateBaseline (void)
 		//
 		// create entity baseline
 		//
+		svent->e->baseline.number = entnum;
 		VectorCopy (svent->v.origin, svent->e->baseline.origin);
 		VectorCopy (svent->v.angles, svent->e->baseline.angles);
 		svent->e->baseline.frame = svent->v.frame;
@@ -146,6 +147,7 @@ static void SV_CreateBaseline (void)
 			MSG_WriteAngle(&sv.signon, svent->e->baseline.angles[i]);
 		}
 	}
+	sv.num_baseline_edicts = sv.num_edicts;
 }
 
 
@@ -348,7 +350,7 @@ void SV_SpawnServer (char *mapname, qbool devmap, char* entityfile)
 #endif
 	PR_InitProg();
 
-	for (i = 0; i < MAX_EDICTS; i++)
+	for (i = 0; i < sv.max_edicts; i++)
 	{
 		ent = EDICT_NUM(i);
 		ent->e = &sv.sv_edicts[i]; // assigning ->e field in each edict_t
@@ -419,6 +421,7 @@ void SV_SpawnServer (char *mapname, qbool devmap, char* entityfile)
 	}
 	
 	sv.map_checksum2 = Com_TranslateMapChecksum (sv.mapname, sv.map_checksum2);
+	sv.static_entity_count = 0;
 
 	SV_ClearWorld (); // clear physics interaction links
 

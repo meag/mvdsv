@@ -3436,6 +3436,18 @@ void SV_InitLocal (void)
 #ifdef FTE_PEXT_FLOATCOORDS
 	svs.fteprotocolextensions |= FTE_PEXT_FLOATCOORDS;
 #endif
+#ifdef FTE_PEXT_MODELDBL
+	svs.fteprotocolextensions |= FTE_PEXT_MODELDBL;
+#endif
+#ifdef FTE_PEXT_ENTITYDBL
+	svs.fteprotocolextensions |= FTE_PEXT_ENTITYDBL;
+#endif
+#ifdef FTE_PEXT_ENTITYDBL2
+	svs.fteprotocolextensions |= FTE_PEXT_ENTITYDBL2;
+#endif
+#ifdef FTE_PEXT_SPAWNSTATIC2
+	svs.fteprotocolextensions |= FTE_PEXT_SPAWNSTATIC2;
+#endif
 
 #ifdef FTE_PEXT2_VOICECHAT
 	svs.fteprotocolextensions2 |= FTE_PEXT2_VOICECHAT;
