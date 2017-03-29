@@ -264,9 +264,17 @@ static void Cmd_New_f (void)
 #ifdef FTE_PEXT_FLOATCOORDS
 	if (msg_coordsize > 2 && !(sv_client->fteprotocolextensions & FTE_PEXT_FLOATCOORDS))
 	{
-		SV_ClientPrintf(sv_client, 2, "\n\n\n\nSorry, but your client does not appear to support FTE's bigcoords\n"
-									 "FTE users will need to set cl_nopext to 0 and then reconnect, or to upgrade\n");
-		Sys_Printf("%s does not support bigcoords\n", sv_client->name);
+		SV_ClientPrintf(sv_client, 2, "\n\n\n\n"
+			"Your client lacks the necessary extensions\n"
+			"  to connect to this server.\n"
+			"Please upgrade to one of the following:\n"
+			"> ezQuake 2.2 (https://ezquake.github.io)\n"
+			"> fodquake 0.4 (http://fodquake.net)\n"
+			"> FTEQW (http://fte.triptohell.info/)\n");
+		if (!sv_client->spectator) {
+			SV_DropClient (sv_client);
+			return;
+		}
 		return;
 	}
 #endif
