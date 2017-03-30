@@ -92,7 +92,6 @@ baseline will be transmitted
 */
 static void SV_CreateBaseline (void)
 {
-	int			i;
 	edict_t			*svent;
 	int				entnum;
 
@@ -123,28 +122,6 @@ static void SV_CreateBaseline (void)
 		{
 			svent->e->baseline.colormap = 0;
 			svent->e->baseline.modelindex = SV_ModelIndex(PR_GetString(svent->v.model));
-		}
-
-		//
-		// flush the signon message out to a separate buffer if
-		// nearly full
-		//
-		SV_FlushSignon ();
-
-		//
-		// add to the message
-		//
-		MSG_WriteByte (&sv.signon,svc_spawnbaseline);
-		MSG_WriteShort (&sv.signon,entnum);
-
-		MSG_WriteByte (&sv.signon, svent->e->baseline.modelindex);
-		MSG_WriteByte (&sv.signon, svent->e->baseline.frame);
-		MSG_WriteByte (&sv.signon, svent->e->baseline.colormap);
-		MSG_WriteByte (&sv.signon, svent->e->baseline.skinnum);
-		for (i=0 ; i<3 ; i++)
-		{
-			MSG_WriteCoord(&sv.signon, svent->e->baseline.origin[i]);
-			MSG_WriteAngle(&sv.signon, svent->e->baseline.angles[i]);
 		}
 	}
 	sv.num_baseline_edicts = sv.num_edicts;
