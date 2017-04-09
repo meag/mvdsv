@@ -396,7 +396,15 @@ void SV_SpawnServer (char *mapname, qbool devmap, char* entityfile)
 		if (!sv.worldmodel)
 			SV_Error ("CM_LoadMap: bad map");
 	}
-	
+
+	{
+		extern cvar_t sv_extlimits, sv_bspversion;
+
+		if (sv_extlimits.value == 0 || (sv_extlimits.value == 2 && sv_bspversion.value < 2)) {
+			sv.max_edicts = min(sv.max_edicts, MAX_EDICTS_SAFE);
+		}
+	}
+
 	sv.map_checksum2 = Com_TranslateMapChecksum (sv.mapname, sv.map_checksum2);
 	sv.static_entity_count = 0;
 

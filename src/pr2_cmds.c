@@ -1620,7 +1620,7 @@ void PF2_makestatic(byte* base, unsigned int mask, pr2val_t* stack, pr2val_t*ret
 	s->colormap = ent->v.colormap;
 	s->skinnum = ent->v.skin;
 	VectorCopy(ent->v.origin, s->origin);
-	VectorCopy(ent->v.origin, s->angles);
+	VectorCopy(ent->v.angles, s->angles);
 	++sv.static_entity_count;
 
 	// throw the entity away now
@@ -2990,6 +2990,8 @@ extern field_t *fields;
 
 void PR2_InitProg()
 {
+	extern cvar_t sv_extlimits, sv_bspversion;
+
 	if ( !sv_vm )
 	{
 		PR1_InitProg();
@@ -3020,11 +3022,13 @@ void PR2_InitProg()
 	pr_globals = (float *) pr_global_struct;
 	fields = (field_t*)PR2_GetString((intptr_t)gamedata->fields);
 	pr_edict_size = gamedata->sizeofent;
+
+	sv.max_edicts = MAX_EDICTS;
 	if (gamedata->APIversion == 14) {
-		sv.max_edicts = min(MAX_EDICTS, gamedata->maxentities);
+		sv.max_edicts = min(sv.max_edicts, gamedata->maxentities);
 	}
 	else {
-		sv.max_edicts = min(MAX_EDICTS, 768);
+		sv.max_edicts = min(sv.max_edicts, 512);
 	}
 }
 #endif /* USE_PR2 */

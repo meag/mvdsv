@@ -267,6 +267,7 @@ static void Cmd_New_f (void)
 		SV_ClientPrintf(sv_client, 2, "\n\n\n\n"
 			"Your client lacks the necessary extensions\n"
 			"  to connect to this server.\n"
+			"Set /cl_pext_floatcoords 1, or upgrade.\n"
 			"Please upgrade to one of the following:\n"
 			"> ezQuake 2.2 (https://ezquake.github.io)\n"
 			"> fodquake 0.4 (http://fodquake.net)\n"
@@ -276,6 +277,19 @@ static void Cmd_New_f (void)
 			return;
 		}
 		return;
+	}
+#endif
+
+#ifdef FTE_PEXT_ENTITYDBL
+	if (sv.max_edicts > 512 && !(sv_client->fteprotocolextensions & FTE_PEXT_ENTITYDBL)) {
+		SV_ClientPrintf(sv_client, 2, "\n\nWARNING:\n"
+			"Your client lacks support for extended\n"
+			"  entity limits, some enemies/projectiles\n"
+			"  may be invisible to you.\n"
+			"Please upgrade to one of the following:\n"
+			"> ezQuake 2.2 (https://ezquake.github.io)\n"
+			"> fodquake 0.4 (http://fodquake.net)\n"
+			"> FTEQW (http://fte.triptohell.info/)\n");
 	}
 #endif
 

@@ -1180,6 +1180,8 @@ extern cvar_t sv_halflifebsp;
 typedef void(*BuildPVSFunction)(lump_t *lump_vis, lump_t *lump_leafs);
 cmodel_t *CM_LoadMap (char *name, qbool clientload, unsigned *checksum, unsigned *checksum2)
 {
+	extern cvar_t sv_bspversion;
+
 	unsigned int i;
 	dheader_t *header;
 	unsigned int *buf;
@@ -1210,6 +1212,7 @@ cmodel_t *CM_LoadMap (char *name, qbool clientload, unsigned *checksum, unsigned
 	map_halflife = (i == HL_BSPVERSION);
 
 	Cvar_SetROM(&sv_halflifebsp, map_halflife ? "1" : "0");
+	Cvar_SetROM(&sv_bspversion, i == Q1_BSPVERSION || i == HL_BSPVERSION ? "1" : "2");
 
 	// swap all the lumps
 	cmod_base = (byte *)header;

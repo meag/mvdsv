@@ -1136,7 +1136,7 @@ void PF_calltimeofday (void)
 /*
 =================
 PF_cvar
- 
+
 float cvar (string)
 =================
 */
@@ -2223,7 +2223,7 @@ void PF_makestatic (void)
 	s->colormap = ent->v.colormap;
 	s->skinnum = ent->v.skin;
 	VectorCopy(ent->v.origin, s->origin);
-	VectorCopy(ent->v.origin, s->angles);
+	VectorCopy(ent->v.angles, s->angles);
 	++sv.static_entity_count;
 
 	// throw the entity away now

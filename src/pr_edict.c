@@ -126,7 +126,7 @@ edict_t *ED_Alloc (void)
 
 	if (i == sv.max_edicts)
 	{
-		Con_Printf ("WARNING: ED_Alloc: no free edicts\n");
+		Con_Printf ("WARNING: ED_Alloc: no free edicts [%d]\n", sv.max_edicts);
 		i--;	// step on whatever is the last edict
 		e = EDICT_NUM(i);
 		SV_UnlinkEdict(e);
