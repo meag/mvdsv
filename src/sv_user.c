@@ -3313,7 +3313,11 @@ void SV_RunCmd (usercmd_t *ucmd, qbool inside, qbool second_attempt) //bliP: 24/
 	int tmp_time;
 	int blocked;
 
-	if (!inside && (int)sv_speedcheck.value && !sv_client->isBot)
+	if (!inside && (int)sv_speedcheck.value
+#ifdef USE_PR2
+		&& !sv_client->isBot
+#endif
+	)
 	{
 		/* AM101 method */
 		tmp_time = Q_rint((realtime - sv_client->last_check) * 1000); // ie. Old 'timepassed'
@@ -3473,6 +3477,7 @@ FIXME
 	// do the move
 	blocked = PM_PlayerMove ();
 
+#ifdef USE_PR2
 	// This is a temporary hack for Frogbots, who adjust after bumping into things
 	// Better would be to provide a way to simulate a move command, but at least this doesn't require API change
 	if (blocked && !second_attempt && sv_client->isBot && sv_player->v.blocked)
@@ -3497,6 +3502,7 @@ FIXME
 		SV_RunCmd (ucmd, false, true);
 		return;
 	}
+#endif
 
 	// get player state back out of pmove
 	sv_client->jump_held = pmove.jump_held;

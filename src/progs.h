@@ -216,6 +216,7 @@ int PR_SetTmpString(const char *s);
 
 void PR1_LoadProgs (void);
 void PR1_InitProg();
+void PR1_Init(void);
 
 #define PR1_GameShutDown()	// PR1 does not really have it.
 void PR1_UnLoadProgs();

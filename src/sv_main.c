@@ -34,6 +34,7 @@ static int  host_hunklevel;
 #else
 
 qbool       server_cfg_done = false;
+double      realtime;			// affected by pause, you should not use it unless it something like physics and such.
 
 #endif
 
@@ -314,9 +315,14 @@ void SV_FinalMessage (const char *message)
 	MSG_WriteByte (&net_message, svc_disconnect);
 
 	for (i=0, cl = svs.clients ; i<MAX_CLIENTS ; i++, cl++)
-		if (cl->state >= cs_spawned && ! cl->isBot)
-			Netchan_Transmit (&cl->netchan, net_message.cursize
-			                  , net_message.data);
+		if (cl->state >= cs_spawned
+#ifdef USE_PR2
+			&& !cl->isBot
+#endif
+			) {
+			Netchan_Transmit(&cl->netchan, net_message.cursize
+				, net_message.data);
+		}
 }
 
 
@@ -2714,8 +2720,11 @@ static char *DecodeArgs(char *args)
 			}
 			*p++ = '\"';
 		}
-		else while (*args > 32)
+		else {
+			while (*args > 32) {
 				*p++ = *args++;
+			}
+		}
 	}
 
 	*p = 0;
@@ -3159,7 +3168,6 @@ void SV_Frame (double time1)
 {
 	static double start, end;
 	double demo_start, demo_end;
-
 
 	start = Sys_DoubleTime ();
 	svs.stats.idle += start - end;
@@ -3828,6 +3836,9 @@ void SV_Init (void)
 
 	SV_MVDInit ();
 	Login_Init ();
+#ifndef SERVERONLY
+	server_cfg_done = true;
+#endif
 }
 
 /*
