@@ -694,7 +694,6 @@ void QTVcmd_Say_f(mvddest_t *d)
 	int		j;
 	char	*p;
 	char	text[1024], text2[1024], *cmd;
-	int     sent_to = 0;
 
 	if (Cmd_Argc () < 2)
 		return;
@@ -743,19 +742,18 @@ void QTVcmd_Say_f(mvddest_t *d)
 			continue; // game started, don't send QTV chat to players, specs still get QTV chat
 
 		SV_ClientPrintf2(client, PRINT_CHAT, "%s", text);
-		if (!client->spectator) {
-			sent_to |= (1 << j);
-		}
 	}
 
-	if (sv.mvdrecording && sent_to)
-	{
-		if (MVDWrite_Begin (dem_multiple, sent_to, strlen(text)+3))
-		{
-			MVD_MSG_WriteByte (svc_print);
-			MVD_MSG_WriteByte (PRINT_CHAT);
-			MVD_MSG_WriteString (text);
-		}
+	if (sv.mvdrecording) {
+		sizebuf_t		msg;
+		byte			msg_buf[1024];
+
+		SZ_InitEx(&msg, msg_buf, sizeof(msg_buf), true);
+		MSG_WriteByte (&msg, svc_print);
+		MSG_WriteByte (&msg, PRINT_CHAT);
+		MSG_WriteString (&msg, text);
+
+		DemoWriteQTV(&msg);
 	}
 
 	Sys_Printf("%s", text2);
