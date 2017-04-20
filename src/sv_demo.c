@@ -1320,7 +1320,6 @@ void SV_MVD_SendInitialGamestate(mvddest_t *dest)
 			}
 
 			if (!s->number || !s->modelindex || !memcmp(s, &empty_baseline, sizeof(empty_baseline))) {
-				++i;
 				continue;
 			}
 
@@ -1331,13 +1330,13 @@ void SV_MVD_SendInitialGamestate(mvddest_t *dest)
 			else if (s->modelindex < 256) {
 				MSG_WriteByte(&buf, svc_spawnbaseline);
 				MSG_WriteShort(&buf, i);
-				MSG_WriteByte(&buf, svent->e->baseline.modelindex);
-				MSG_WriteByte(&buf, svent->e->baseline.frame);
-				MSG_WriteByte(&buf, svent->e->baseline.colormap);
-				MSG_WriteByte(&buf, svent->e->baseline.skinnum);
+				MSG_WriteByte(&buf, s->modelindex);
+				MSG_WriteByte(&buf, s->frame);
+				MSG_WriteByte(&buf, s->colormap);
+				MSG_WriteByte(&buf, s->skinnum);
 				for (j = 0; j < 3; j++) {
-					MSG_WriteCoord(&buf, svent->e->baseline.origin[j]);
-					MSG_WriteAngle(&buf, svent->e->baseline.angles[j]);
+					MSG_WriteCoord(&buf, s->origin[j]);
+					MSG_WriteAngle(&buf, s->angles[j]);
 				}
 			}
 		}
