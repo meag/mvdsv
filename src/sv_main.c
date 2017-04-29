@@ -434,8 +434,13 @@ int SV_CalcPing (client_t *cl)
 	ping = 0;
 	count = 0;
 #ifdef USE_PR2
-	if( cl->isBot )
-		return ((int) (sv_mintic.value * 1000));
+	if (cl->isBot) {
+		float maxfps = sv_maxfps.value;
+		if (maxfps < 20 || maxfps > 1000) {
+			maxfps = 77.0f;
+		}
+		return ((int)((1 / maxfps) * 1000));
+	}
 #endif
 	for (frame = cl->frames, i=0 ; i<UPDATE_BACKUP ; i++, frame++)
 	{
