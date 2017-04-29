@@ -121,7 +121,7 @@ static void SV_CreateBaseline (void)
 		else
 		{
 			svent->e->baseline.colormap = 0;
-			svent->e->baseline.modelindex = SV_ModelIndex(PR_GetString(svent->v.model));
+			svent->e->baseline.modelindex = svent->v.modelindex;
 		}
 	}
 	sv.num_baseline_edicts = sv.num_edicts;
