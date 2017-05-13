@@ -1015,7 +1015,41 @@ void SV_Physics (void)
 			sv_player->v.goalentity = EDICT_TO_PROG(svs.clients[sv_client->spec_track-1].edict);
 	}
 
+	sv_player = savesvpl;
+	sv_client = savehc;
+}
+
 #ifdef USE_PR2
+void SV_RunBots(void)
+{
+	int i;
+	client_t *cl,*savehc;
+	edict_t *savesvpl;
+	double bot_frametime;
+	double max_physfps = sv_maxfps.value;
+
+	if (max_physfps < 20 || max_physfps > 1000) {
+		max_physfps = 77.0;
+	}
+
+	if (sv.state != ss_active || !sv.physicstime)
+		return;
+
+	if (sv.old_bot_time)
+	{
+		// don't bother running a frame if 1/fps seconds haven't passed
+		bot_frametime = sv.time - sv.old_bot_time;
+		if (bot_frametime < (double) 1.0f / max_physfps)
+			return;
+	}
+	else {
+		sv_frametime = 1.0f / max_physfps; // initialization frame
+	}
+	sv.old_bot_time = sv.time;
+
+	savesvpl = sv_player;
+	savehc = sv_client;
+
 	//
 	// Run bots physics.
 	//
@@ -1045,25 +1079,22 @@ void SV_Physics (void)
 		cl->localtime = sv.time;
 		cl->delta_sequence = -1;	// no delta unless requested
 
-		if (sv_antilag.value)
-		{
-			if (cl->antilag_position_next == 0 || cl->antilag_positions[(cl->antilag_position_next - 1) % MAX_ANTILAG_POSITIONS].localtime < cl->localtime)
-			{
+		if (sv_antilag.value) {
+			if (cl->antilag_position_next == 0 || cl->antilag_positions[(cl->antilag_position_next - 1) % MAX_ANTILAG_POSITIONS].localtime < cl->localtime) {
 				cl->antilag_positions[cl->antilag_position_next % MAX_ANTILAG_POSITIONS].localtime = cl->localtime;
 				VectorCopy(cl->edict->v.origin, cl->antilag_positions[cl->antilag_position_next % MAX_ANTILAG_POSITIONS].origin);
 				cl->antilag_position_next++;
 			}
 		}
-		else
-		{
+		else {
 			cl->antilag_position_next = 0;
 		}
 	}
-#endif
 
 	sv_player = savesvpl;
 	sv_client = savehc;
 }
+#endif
 
 void SV_SetMoveVars(void)
 {

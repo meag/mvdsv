@@ -3218,8 +3218,12 @@ void SV_Frame (double time1)
 	SV_ReadPackets ();
 
 	// move autonomous things around if enough time has passed
-	if (!sv.paused)
-		SV_Physics ();
+	if (!sv.paused) {
+		SV_Physics();
+#ifdef USE_PR2
+		SV_RunBots();
+#endif
+	}
 	else
 		PausedTic ();
 
