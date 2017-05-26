@@ -21,6 +21,8 @@ static CURLM* curl_handle = NULL;
 
 #define MAX_RESPONSE_LENGTH    4096
 
+struct web_request_data_s;
+
 typedef void(*web_response_func_t)(struct web_request_data_s* req, qbool valid);
 
 typedef struct web_request_data_s {
@@ -50,11 +52,14 @@ size_t Web_StandardTokenWrite(void* buffer, size_t size, size_t nmemb, void* use
 	web_request_data_t* data = (web_request_data_t*)userp;
 	size_t available = sizeof(data->response) - data->response_length;
 	if (size * nmemb > available) {
+		Con_DPrintf("WWW: Response too large, size*nmemb = %d, available %d\n", size * nmemb, available);
 		return 0;
 	}
 	else if (size * nmemb > 0) {
+		Con_DPrintf("WWW: response received, writing %d bytes\n", size * nmemb);
 		memcpy(data->response + data->response_length, buffer, size * nmemb);
 		data->response_length += size * nmemb;
+		Con_DPrintf("WWW: response_length now %d bytes\n", data->response_length);
 	}
 	return size * nmemb;
 }
@@ -217,8 +222,8 @@ void Web_PostResponse(web_request_data_t* req, qbool valid)
 
 		req->response[req->response_length] = '\0';
 
-		Con_Printf("Response from web server:\n");
-		Con_Printf(req->response);
+		Con_DPrintf("Response from web server:\n");
+		Con_DPrintf(req->response);
 
 		ProcessWebResponse(req, fields, sizeof(fields) / sizeof(fields[0]));
 
