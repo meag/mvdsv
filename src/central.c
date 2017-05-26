@@ -216,6 +216,10 @@ void Web_PostResponse(web_request_data_t* req, qbool valid)
 		};
 
 		req->response[req->response_length] = '\0';
+
+		Con_Printf("Response from web server:\n");
+		Con_Printf(req->response);
+
 		ProcessWebResponse(req, fields, sizeof(fields) / sizeof(fields[0]));
 
 		if (broadcast) {
