@@ -494,10 +494,19 @@ void Central_ProcessResponses(void)
 				web_request_data_t* this = *list_pointer;
 
 				if (this->handle == handle) {
-					long response_code = 0;
-					curl_easy_getinfo(handle, CURLINFO_RESPONSE_CODE, &response_code);
 					if (this->onCompleteCallback) {
-						this->onCompleteCallback(this, response_code);
+						if (result == CURLE_OK) {
+							this->onCompleteCallback(this, true);
+						}
+						else {
+							Con_Printf("ERROR: %s\n", curl_easy_strerror(result));
+							this->onCompleteCallback(this, false);
+						}
+					}
+					else {
+						if (result != CURLE_OK) {
+							Con_Printf("ERROR: %s\n", curl_easy_strerror(result));
+						}
 					}
 					curl_formfree(this->first_form_ptr);
 					Q_free(this->request_id);
