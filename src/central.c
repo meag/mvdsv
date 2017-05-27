@@ -6,7 +6,6 @@
 
 #define GENERATE_CHALLENGE_PATH     "/Authentication/GenerateChallenge"
 #define VERIFY_RESPONSE_PATH        "/Authentication/VerifyResponse"
-#define SUBMIT_GAME_PATH            "/Game/Submit"
 
 #ifdef _WIN32
 #pragma comment(lib, "libcurld.lib")
@@ -352,6 +351,18 @@ void Central_GenerateChallenge(client_t* client, const char* username)
 	curl_free(encoded_username);
 }
 
+static void Web_ConstructURL(char* url, const char* path, int sizeof_url)
+{
+	strlcpy(url, central_server_address.string, sizeof_url);
+	if (url[strlen(url) - 1] != '/') {
+		strlcat(url, "/", sizeof_url);
+	}
+	while (*path == '/') {
+		++path;
+	}
+	strlcat(url, path, sizeof_url);
+}
+
 static void Web_SendRequest(qbool post)
 {
 	char postData[1024];
@@ -362,13 +373,17 @@ static void Web_SendRequest(qbool post)
 	int max_length = (post ? sizeof(postData) : sizeof(url));
 	char* encoded_authkey = curl_easy_escape(curl_handle, central_server_authkey.string, 0);
 
+	if (!central_server_address.string[0]) {
+		Con_Printf("Address not set - functionality disabled\n");
+		return;
+	}
+
 	if (Cmd_Argc() < 3) {
 		Con_Printf("Usage: %s <url> <request-id> (<key> <value>)*\n", Cmd_Argv(0));
 		return;
 	}
 
-	strlcpy(url, central_server_address.string, sizeof(url));
-	strlcat(url, Cmd_Argv(1), sizeof(url));
+	Web_ConstructURL(url, Cmd_Argv(1), sizeof(url));
 
 	requestId = Cmd_Argv(2);
 	if (requestId[0]) {
@@ -428,6 +443,11 @@ static void Web_PostFileRequest_f(void)
 	CURLFORMcode code = 0;
 	const char* specified = Cmd_Argv(3);
 
+	if (!central_server_address.string[0]) {
+		Con_Printf("Address not set - functionality disabled\n");
+		return;
+	}
+
 	if (specified[0] == '*' && specified[1] == '\0') {
 		if (!sv.mvdrecording || !demo.dest) {
 			Con_Printf("Not recording demo!\n");
@@ -451,8 +471,7 @@ static void Web_PostFileRequest_f(void)
 		return;
 	}
 
-	strlcpy(url, central_server_address.string, sizeof(url));
-	strlcat(url, Cmd_Argv(1), sizeof(url));
+	Web_ConstructURL(url, Cmd_Argv(1), sizeof(url));
 
 	requestId = Cmd_Argv(2);
 	if (requestId[0]) {
@@ -476,9 +495,6 @@ static void Web_PostFileRequest_f(void)
 		CURLFORM_FILE, path,
 		CURLFORM_END
 	);
-
-	strlcpy(url, central_server_address.string, sizeof(url));
-	strlcat(url, SUBMIT_GAME_PATH, sizeof(url));
 
 	Web_SubmitRequestForm(url, first_form_ptr, last_form_ptr, Web_PostResponse, requestId, NULL);
 }
