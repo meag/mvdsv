@@ -4,8 +4,10 @@
 #include "qwsvdef.h"
 #include <curl/curl.h>
 
-#define GENERATE_CHALLENGE_PATH     "/Authentication/GenerateChallenge"
-#define VERIFY_RESPONSE_PATH        "/Authentication/VerifyResponse"
+#define GENERATE_CHALLENGE_PATH     "Authentication/GenerateChallenge"
+#define VERIFY_RESPONSE_PATH        "Authentication/VerifyResponse"
+#define CHECKIN_PATH                "ServerApi/Checkin"
+#define MIN_CHECKIN_PERIOD          60
 
 #ifdef _WIN32
 #pragma comment(lib, "libcurld.lib")
@@ -15,14 +17,19 @@
 
 static cvar_t central_server_address = { "cs_address", "" };
 static cvar_t central_server_authkey = { "cs_authkey", "" };
+static cvar_t central_server_checkin_period = { "cs_checkin_period", "60" };
 
 static CURLM* curl_handle = NULL;
+
+static double last_checkin_time;
 
 #define MAX_RESPONSE_LENGTH    4096
 
 struct web_request_data_s;
 
 typedef void(*web_response_func_t)(struct web_request_data_s* req, qbool valid);
+static void Web_ConstructURL(char* url, const char* path, int sizeof_url);
+static void Web_SubmitRequestForm(const char* url, struct curl_httppost *first_form_ptr, struct curl_httppost *last_form_ptr, web_response_func_t callback, const char* requestId, void* internal_data);
 
 typedef struct web_request_data_s {
 	CURL*               handle;
@@ -45,6 +52,16 @@ typedef struct web_request_data_s {
 } web_request_data_t;
 
 static web_request_data_t* web_requests;
+
+static qbool CheckFileExists(const char* path)
+{
+	FILE* f;
+	if (!(f = fopen(path, "rb"))) {
+		return false;
+	}
+	fclose(f);
+	return true;
+}
 
 size_t Web_StandardTokenWrite(void* buffer, size_t size, size_t nmemb, void* userp)
 {
@@ -214,8 +231,11 @@ void Web_PostResponse(web_request_data_t* req, qbool valid)
 	if (valid) {
 		const char* broadcast = NULL;
 		const char* upload = NULL;
+		const char* uploadPath = NULL;
+
 		response_field_t fields[] = {
 			{ "Broadcast", &broadcast },
+			{ "UploadPath", &uploadPath },
 			{ "Upload", &upload }
 		};
 
@@ -230,11 +250,50 @@ void Web_PostResponse(web_request_data_t* req, qbool valid)
 			// Server is making announcement
 			SV_BroadcastPrintfEx(PRINT_HIGH, 0, "%s\n", broadcast);
 		}
-		if (upload) {
-			// TODO: Server has requested file upload, do so if it exists...
-		}
+		if (upload && uploadPath) {
+			if (strstr(uploadPath, "//") || FS_UnsafeFilename(upload)) {
+				Con_Printf("Upload request deemed unsafe, ignoring...\n");
+			}
+			else {
+				if (!strncmp(upload, "demos/", 6)) {
+					// Ok - could be demo_dir, or full path
+					char demoName[MAX_OSPATH];
 
-		//Con_Printf(req->response);
+					if (sv_demoDir.string[0]) {
+						char url[512];
+						struct curl_httppost *first_form_ptr = NULL;
+						struct curl_httppost *last_form_ptr = NULL;
+
+						snprintf(demoName, sizeof(demoName), "%s/%s/%s", fs_gamedir, sv_demoDir.string, upload + 6);
+
+						if (CheckFileExists(demoName)) {
+							Web_ConstructURL(url, uploadPath, sizeof(url));
+
+							curl_formadd(&first_form_ptr, &last_form_ptr,
+								CURLFORM_PTRNAME, "file",
+								CURLFORM_FILE, demoName,
+								CURLFORM_END
+							);
+
+							curl_formadd(&first_form_ptr, &last_form_ptr,
+								CURLFORM_COPYNAME, "localPath",
+								CURLFORM_COPYCONTENTS, upload,
+								CURLFORM_END
+							);
+
+							Web_SubmitRequestForm(url, first_form_ptr, last_form_ptr, Web_PostResponse, "upload", NULL);
+							Con_Printf("Uploading %s...\n", demoName);
+						}
+						else {
+							Con_Printf("Couldn't find file %s, ignoring...\n", demoName);
+						}
+					}
+				}
+				else {
+					Con_Printf("Upload request folder not authorised, ignoring...\n");
+				}
+			}
+		}
 	}
 	else {
 		Con_Printf("Failure contacting central server.\n");
@@ -268,7 +327,7 @@ void Web_SubmitRequest(const char* url, const char* postData, web_response_func_
 	web_requests = data;
 }
 
-void Web_SubmitRequestForm(const char* url, struct curl_httppost *first_form_ptr, struct curl_httppost *last_form_ptr, web_response_func_t callback, const char* requestId, void* internal_data)
+static void Web_SubmitRequestForm(const char* url, struct curl_httppost *first_form_ptr, struct curl_httppost *last_form_ptr, web_response_func_t callback, const char* requestId, void* internal_data)
 {
 	CURL* req = curl_easy_init();
 	web_request_data_t* data = Q_malloc(sizeof(web_request_data_t));
@@ -481,13 +540,9 @@ static void Web_PostFileRequest_f(void)
 		requestId = NULL;
 	}
 
-	{
-		FILE* f;
-		if (!(f = fopen(path, "rb"))) {
-			Con_Printf("Failed to open file\n");
-			return;
-		}
-		fclose(f);
+	if (! CheckFileExists(path)) {
+		Con_Printf("Failed to open file\n");
+		return;
 	}
 
 	code = curl_formadd(&first_form_ptr, &last_form_ptr,
@@ -504,8 +559,16 @@ void Central_ProcessResponses(void)
 	CURLMsg* msg;
 	int running_handles = 0;
 	int messages_in_queue = 0;
+	qbool server_busy = false;
+
+	if (!last_checkin_time) {
+		last_checkin_time = curtime;
+		return;
+	}
 
 	curl_multi_perform(curl_handle, &running_handles);
+
+	server_busy = running_handles || GameStarted();
 
 	while ((msg = curl_multi_info_read(curl_handle, &messages_in_queue))) {
 		if (msg->msg == CURLMSG_DONE) {
@@ -519,25 +582,35 @@ void Central_ProcessResponses(void)
 				web_request_data_t* this = *list_pointer;
 
 				if (this->handle == handle) {
+					// Remove from queue immediately
+					*list_pointer = this->next;
+
+					if (this->request_id && !strcmp(this->request_id, "upload")) {
+						this = this;
+					}
 					if (this->onCompleteCallback) {
 						if (result == CURLE_OK) {
 							this->onCompleteCallback(this, true);
 						}
 						else {
-							Con_Printf("ERROR: %s\n", curl_easy_strerror(result));
+							Con_DPrintf("ERROR: %s\n", curl_easy_strerror(result));
 							this->onCompleteCallback(this, false);
 						}
 					}
 					else {
 						if (result != CURLE_OK) {
-							Con_Printf("ERROR: %s\n", curl_easy_strerror(result));
+							Con_DPrintf("ERROR: %s\n", curl_easy_strerror(result));
+						}
+						else {
+							Con_DPrintf("WEB OK, no callback\n");
 						}
 					}
+
+					// free memory
 					curl_formfree(this->first_form_ptr);
 					Q_free(this->request_id);
-
-					*list_pointer = this->next;
 					Q_free(this);
+
 					break;
 				}
 
@@ -546,6 +619,19 @@ void Central_ProcessResponses(void)
 
 			curl_easy_cleanup(handle);
 		}
+	}
+
+	if (!server_busy && curtime - last_checkin_time > max(MIN_CHECKIN_PERIOD, central_server_checkin_period.value)) {
+		char url[512];
+
+		Web_ConstructURL(url, CHECKIN_PATH, sizeof(url));
+
+		Web_SubmitRequestForm(url, NULL, NULL, Web_PostResponse, NULL, NULL);
+
+		last_checkin_time = curtime;
+	}
+	else if (server_busy) {
+		last_checkin_time = curtime;
 	}
 }
 
@@ -565,6 +651,7 @@ void Central_Init(void)
 
 	Cvar_Register(&central_server_address);
 	Cvar_Register(&central_server_authkey);
+	Cvar_Register(&central_server_checkin_period);
 
 	curl_handle = curl_multi_init();
 

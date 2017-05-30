@@ -1018,7 +1018,7 @@ FS_UnsafeFilename
 Returns true if user-specified path is unsafe
 ===========
 */
-qbool FS_UnsafeFilename(char* fileName)
+qbool FS_UnsafeFilename(const char* fileName)
 {
 	return !fileName ||
 		!*fileName || // invalid name.
