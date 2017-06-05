@@ -23,7 +23,7 @@ static CURLM* curl_handle = NULL;
 
 static double last_checkin_time;
 
-#define MAX_RESPONSE_LENGTH    4096
+#define MAX_RESPONSE_LENGTH    (4096*2)
 
 struct web_request_data_s;
 
@@ -50,6 +50,20 @@ typedef struct web_request_data_s {
 
 	struct web_request_data_s* next;
 } web_request_data_t;
+
+static int utf8Encode(char in, char* out1, char* out2) {
+	if (in <= 0x7F) {
+		// <= 127 is encoded as single byte, no translation
+		*out1 = in;
+		return 1;
+	}
+	else {
+		// Two byte characters... 5 bits then 6
+		*out1 = 0xC0 | ((in >> 6) & 0x1F);
+		*out2 = 0x80 | (in & 0x3F);
+		return 2;
+	}
+}
 
 static web_request_data_t* web_requests;
 
@@ -304,29 +318,6 @@ void Web_PostResponse(web_request_data_t* req, qbool valid)
 	}
 }
 
-void Web_SubmitRequest(const char* url, const char* postData, web_response_func_t callback, void* internal_data)
-{
-	CURL* req = curl_easy_init();
-
-	web_request_data_t* data = Q_malloc(sizeof(web_request_data_t));
-	data->onCompleteCallback = callback;
-	data->time_sent = sv.time;
-	data->internal_data = internal_data;
-	data->handle = req;
-
-	curl_easy_setopt(req, CURLOPT_URL, url);
-	curl_easy_setopt(req, CURLOPT_WRITEDATA, data);
-	curl_easy_setopt(req, CURLOPT_WRITEFUNCTION, Web_StandardTokenWrite); 
-	if (postData != 0 && postData[0]) {
-		curl_easy_setopt(req, CURLOPT_POST, 1);
-		curl_easy_setopt(req, CURLOPT_COPYPOSTFIELDS, postData);
-	}
-
-	curl_multi_add_handle(curl_handle, req);
-	data->next = web_requests;
-	web_requests = data;
-}
-
 static void Web_SubmitRequestForm(const char* url, struct curl_httppost *first_form_ptr, struct curl_httppost *last_form_ptr, web_response_func_t callback, const char* requestId, void* internal_data)
 {
 	CURL* req = curl_easy_init();
@@ -359,55 +350,46 @@ static void Web_SubmitRequestForm(const char* url, struct curl_httppost *first_f
 
 void Central_VerifyChallengeResponse(client_t* client, const char* challenge, const char* response)
 {
-	char postData[1024];
 	char url[512];
-	char* encoded_authkey = curl_easy_escape(curl_handle, central_server_authkey.string, 0);
-	char* encoded_challenge = curl_easy_escape(curl_handle, challenge, 0);
-	char* encoded_response = curl_easy_escape(curl_handle, response, 0);
+	struct curl_httppost *first_form_ptr = NULL;
+	struct curl_httppost *last_form_ptr = NULL;
+	CURLFORMcode code;
 
-	if (encoded_authkey && encoded_challenge && encoded_response) {
-		strlcpy(url, central_server_address.string, sizeof(url));
-		strlcat(url, VERIFY_RESPONSE_PATH, sizeof(url));
+	code = curl_formadd(&first_form_ptr, &last_form_ptr,
+		CURLFORM_PTRNAME, "challenge",
+		CURLFORM_COPYCONTENTS, challenge,
+		CURLFORM_END
+	);
 
-		strlcpy(postData, "authKey=", sizeof(postData));
-		strlcat(postData, encoded_authkey, sizeof(postData));
-		strlcat(postData, "&challenge=", sizeof(postData));
-		strlcat(postData, encoded_challenge, sizeof(postData));
-		strlcat(postData, "&response=", sizeof(postData));
-		strlcat(postData, encoded_response, sizeof(postData));
+	code = curl_formadd(&first_form_ptr, &last_form_ptr,
+		CURLFORM_PTRNAME, "response",
+		CURLFORM_COPYCONTENTS, response,
+		CURLFORM_END
+	);
 
-		client->login_request_time = sv.time;
-		Web_SubmitRequest(url, postData, Auth_ProcessLoginAttempt, client);
-	}
+	Web_ConstructURL(url, VERIFY_RESPONSE_PATH, sizeof(url));
 
-	curl_free(encoded_authkey);
-	curl_free(encoded_challenge);
-	curl_free(encoded_response);
+	client->login_request_time = sv.time;
+	Web_SubmitRequestForm(url, first_form_ptr, last_form_ptr, Auth_ProcessLoginAttempt, NULL, client);
 }
 
 void Central_GenerateChallenge(client_t* client, const char* username)
 {
-	char postData[1024];
 	char url[512];
+	struct curl_httppost *first_form_ptr = NULL;
+	struct curl_httppost *last_form_ptr = NULL;
+	CURLFORMcode code;
 
-	char* encoded_authkey = curl_easy_escape(curl_handle, central_server_authkey.string, 0);
-	char* encoded_username = curl_easy_escape(curl_handle, username, strlen(username));
+	Web_ConstructURL(url, GENERATE_CHALLENGE_PATH, sizeof(url));
 
-	if (encoded_authkey && encoded_username) {
-		strlcpy(url, central_server_address.string, sizeof(url));
-		strlcat(url, GENERATE_CHALLENGE_PATH, sizeof(url));
+	code = curl_formadd(&first_form_ptr, &last_form_ptr,
+		CURLFORM_PTRNAME, "userName",
+		CURLFORM_COPYCONTENTS, username,
+		CURLFORM_END
+	);
 
-		strlcpy(postData, "authKey=", sizeof(postData));
-		strlcat(postData, encoded_authkey, sizeof(postData));
-		strlcat(postData, "&userName=", sizeof(postData));
-		strlcat(postData, encoded_username, sizeof(postData));
-
-		client->login_request_time = sv.time;
-		Web_SubmitRequest(url, postData, Auth_GenerateChallengeResponse, client);
-	}
-
-	curl_free(encoded_authkey);
-	curl_free(encoded_username);
+	client->login_request_time = sv.time;
+	Web_SubmitRequestForm(url, first_form_ptr, last_form_ptr, Auth_GenerateChallengeResponse, NULL, client);
 }
 
 static void Web_ConstructURL(char* url, const char* path, int sizeof_url)
@@ -424,13 +406,11 @@ static void Web_ConstructURL(char* url, const char* path, int sizeof_url)
 
 static void Web_SendRequest(qbool post)
 {
-	char postData[1024];
+	struct curl_httppost *first_form_ptr = NULL;
+	struct curl_httppost *last_form_ptr = NULL;
 	char url[512];
 	char* requestId = NULL;
 	int i;
-	char* paramString = (post ? postData : url);
-	int max_length = (post ? sizeof(postData) : sizeof(url));
-	char* encoded_authkey = curl_easy_escape(curl_handle, central_server_authkey.string, 0);
 
 	if (!central_server_address.string[0]) {
 		Con_Printf("Address not set - functionality disabled\n");
@@ -452,34 +432,35 @@ static void Web_SendRequest(qbool post)
 		requestId = NULL;
 	}
 
-	postData[0] = '\0';
-	strlcpy(postData, "authKey=", sizeof(postData));
-	strlcat(postData, encoded_authkey, sizeof(postData));
-	curl_free(encoded_authkey);
-
-	if (!post) {
-		strlcat(url, "?", sizeof(url));
-	}
 	for (i = 3; i < Cmd_Argc() - 1; i += 2) {
-		char* key = curl_easy_escape(curl_handle, Cmd_Argv(i), 0);
-		char* value = curl_easy_escape(curl_handle, Cmd_Argv(i + 1), 0);
+		char encoded_value[128];
+		int encoded_length = 0;
+		int j;
+		char* name;
+		char* value;
+		CURLFORMcode code;
 
-		if (!key || !value || strlen(paramString) >= max_length - strlen(key) - strlen(value) - 3) {
-			curl_free(key);
-			curl_free(value);
+		name = Cmd_Argv(i);
+		value = Cmd_Argv(i + 1);
+		for (j = 0; j < strlen(value) && encoded_length < sizeof(encoded_value) - 2; ++j) {
+			encoded_length += utf8Encode(value[j], &encoded_value[encoded_length], &encoded_value[encoded_length + 1]);
+		}
+		encoded_value[encoded_length] = '\0';
+
+		code = curl_formadd(&first_form_ptr, &last_form_ptr,
+			CURLFORM_COPYNAME, name,
+			CURLFORM_COPYCONTENTS, encoded_value,
+			CURLFORM_END
+		);
+
+		if (code != CURLE_OK) {
+			curl_formfree(first_form_ptr);
 			Con_Printf("Request failed\n");
 			return;
 		}
-
-		strlcat(postData, "&", sizeof(postData));
-		strlcat(postData, key, sizeof(postData));
-		strlcat(postData, "=", sizeof(postData));
-		strlcat(postData, value, sizeof(postData));
-		curl_free(key);
-		curl_free(value);
 	}
 
-	Web_SubmitRequest(url, postData, Web_PostResponse, requestId);
+	Web_SubmitRequestForm(url, first_form_ptr, last_form_ptr, Web_PostResponse, requestId, NULL);
 }
 
 static void Web_GetRequest_f(void)
@@ -517,7 +498,12 @@ static void Web_PostFileRequest_f(void)
 		snprintf(path, MAX_OSPATH, "%s/%s/%s", fs_gamedir, sv_demoDir.string, SV_MVDName2Txt(demo.dest->name));
 	}
 	else {
-		snprintf(path, MAX_OSPATH, "%s/%s", fs_gamedir, Cmd_Argv(3));
+		if (strstr(specified, ".cfg") || !strchr(specified, '/')) {
+			Con_Printf("Filename invalid\n");
+			return;
+		}
+
+		snprintf(path, MAX_OSPATH, "%s/%s", fs_gamedir, specified);
 	}
 
 	if (Cmd_Argc() < 4) {
@@ -621,7 +607,7 @@ void Central_ProcessResponses(void)
 		}
 	}
 
-	if (!server_busy && curtime - last_checkin_time > max(MIN_CHECKIN_PERIOD, central_server_checkin_period.value)) {
+	if (central_server_address.string[0] && !server_busy && curtime - last_checkin_time > max(MIN_CHECKIN_PERIOD, central_server_checkin_period.value)) {
 		char url[512];
 
 		Web_ConstructURL(url, CHECKIN_PATH, sizeof(url));
