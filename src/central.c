@@ -106,12 +106,19 @@ static int ProcessWebResponse(web_request_data_t* req, response_field_t* fields,
 	int i;
 	int total_fields = 0;
 
-	// Response should be multiple lines, <Key>:<Value>
+	// Response should be multiple lines, <Key>:<Value>\n
+	// For multi-line values, prefix end of line with $
 	req->response[req->response_length] = '\0';
 	while ((colon = strchr(start, ':'))) {
 		newline = strchr(colon, '\n');
 		if (newline) {
-			*newline = '\0';
+			while (newline && newline != colon + 1 && *(newline - 1) == '$') {
+				*(newline - 1) = ' ';
+				newline = strchr(newline + 1, '\n');
+			}
+			if (newline) {
+				*newline = '\0';
+			}
 		}
 
 		*colon = '\0';
