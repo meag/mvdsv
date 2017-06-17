@@ -259,7 +259,7 @@ void PF2_setmodel(byte* base, uintptr_t mask, pr2val_t* stack, pr2val_t*retval)
 	if (!*check)
 		PR2_RunError("no precache: %s\n", m);
 
-	e->v.model = PR2_SetString(m);
+	PR2_SetEntityString(e, &e->v.model, m);
 	e->v.modelindex = i;
 
 	// if it is an inline model, get the size information for it
@@ -1605,8 +1605,7 @@ void PF2_makestatic(byte* base, uintptr_t mask, pr2val_t* stack, pr2val_t*retval
 	ent = EDICT_NUM(stack[0]._int);
 
 	MSG_WriteByte(&sv.signon, svc_spawnstatic);
-#pragma msg("Why it is not just PR_GetString(ent->v.model) instead of VM_POINTER(base,mask,ent->v.model) ???")
-	MSG_WriteByte(&sv.signon, SV_ModelIndex((char *) VM_POINTER(base,mask,ent->v.model)));
+	MSG_WriteByte(&sv.signon, SV_ModelIndex(PR_GetEntityString(ent->v.model)));
 
 	MSG_WriteByte(&sv.signon, ent->v.frame);
 	MSG_WriteByte(&sv.signon, ent->v.colormap);
@@ -1928,20 +1927,22 @@ void PF2_fixme(byte* base, uintptr_t mask, pr2val_t* stack, pr2val_t*retval)
 
 void PF2_memset(byte* base, uintptr_t mask, pr2val_t* stack, pr2val_t*retval)
 {
-	retval->_int= PR2_SetString((char *) memset(VM_POINTER(base,mask,stack[0].string),stack[1]._int,stack[2]._int));
+	memset(VM_POINTER(base, mask, stack[0].string), stack[1]._int, stack[2]._int);
+
+	retval->_int = stack[0].string;
 }
 
 void PF2_memcpy(byte* base, uintptr_t mask, pr2val_t* stack, pr2val_t*retval)
 {
-	retval->_int= PR2_SetString( (char *) memcpy( VM_POINTER(base,mask,stack[0].string),
-	                                     VM_POINTER(base,mask,stack[1].string),
-	                                     stack[2]._int));
+	memcpy(VM_POINTER(base, mask, stack[0].string), VM_POINTER(base, mask, stack[1].string), stack[2]._int);
+
+	retval->_int = stack[0].string;
 }
 void PF2_strncpy(byte* base, uintptr_t mask, pr2val_t* stack, pr2val_t*retval)
 {
-	retval->_int= PR2_SetString( strncpy( (char *) VM_POINTER(base,mask,stack[0].string),
-	                                      (char *) VM_POINTER(base,mask,stack[1].string),
-	                                      stack[2]._int));
+	strncpy((char *)VM_POINTER(base, mask, stack[0].string), (char *)VM_POINTER(base, mask, stack[1].string), stack[2]._int);
+
+	retval->_int = stack[0].string;
 }
 
 void PF2_sin(byte* base, uintptr_t mask, pr2val_t* stack, pr2val_t*retval)
@@ -2468,9 +2469,9 @@ void PF2_Add_Bot( byte * base, uintptr_t mask, pr2val_t * stack, pr2val_t * retv
 		return;
 	}
 
-	memset (newcl, 0, sizeof (*newcl));
-	edictnum = ( newcl - svs.clients ) + 1;
-	ent = EDICT_NUM( edictnum );
+	memset(newcl, 0, sizeof(*newcl));
+	edictnum = (newcl - svs.clients) + 1;
+	ent = EDICT_NUM(edictnum);
 	ED_ClearEdict(ent);
 
 	memset(&newcl->_userinfo_ctx_, 0, sizeof(newcl->_userinfo_ctx_));
@@ -2503,7 +2504,6 @@ void PF2_Add_Bot( byte * base, uintptr_t mask, pr2val_t * stack, pr2val_t * retv
 	if ( val )
 		val->_float = sv_maxspeed.value;
 
-
 	newcl->edict = ent;
 	ent->v.colormap = edictnum;
 	val = PR2_GetEdictFieldValue( ent, "isBot" );
@@ -2511,7 +2511,7 @@ void PF2_Add_Bot( byte * base, uintptr_t mask, pr2val_t * stack, pr2val_t * retv
 		val->_int = 1;
 
 	// restore client name.
-	ent->v.netname = PR_SetString(newcl->name);
+	PR_SetEntityString(ent, ent->v.netname, newcl->name);
 
 	memset( newcl->stats, 0, sizeof( newcl->stats ) );
 	SZ_InitEx (&newcl->netchan.message, newcl->netchan.message_buf, (int)sizeof(newcl->netchan.message_buf), true);

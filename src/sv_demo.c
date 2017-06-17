@@ -1188,7 +1188,7 @@ void SV_MVD_SendInitialGamestate(mvddest_t *dest)
 	MSG_WriteFloat (&buf, sv.time);
 
 	// send full levelname
-	MSG_WriteString (&buf, PR_GetString(sv.edicts->v.message));
+	MSG_WriteString (&buf, PR_GetEntityString(sv.edicts->v.message));
 
 	// send the movevars
 	MSG_WriteFloat(&buf, movevars.gravity);
@@ -1511,7 +1511,7 @@ void SV_MVD_SendInitialGamestate(mvddest_t *dest)
 		memset(stats, 0, sizeof(stats));
 
 		stats[STAT_HEALTH]       = ent->v.health;
-		stats[STAT_WEAPON]       = SV_ModelIndex(PR_GetString(ent->v.weaponmodel));
+		stats[STAT_WEAPON]       = SV_ModelIndex(PR_GetEntityString(ent->v.weaponmodel));
 		stats[STAT_AMMO]         = ent->v.currentammo;
 		stats[STAT_ARMOR]        = ent->v.armorvalue;
 		stats[STAT_SHELLS]       = ent->v.ammo_shells;

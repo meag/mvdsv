@@ -105,36 +105,165 @@ char *PR2_GetString(intptr_t num)
 	return NULL;
 }
 
-//===========================================================================
-// PR2_SetString
-// FIXME for VM
-//===========================================================================
-intptr_t PR2_SetString(char *s)
+char *PR2_GetGlobalString(intptr_t num)
 {
 	qvm_t *qvm;
-	intptr_t off;
+
 	if(!sv_vm)
-		return PR1_SetString(s);
+		return PR1_GetString(num);
 
 	switch (sv_vm->type)
 	{
 	case VM_NONE:
-		return PR1_SetString(s);
+		return PR1_GetString(num);
 
 	case VM_NATIVE:
-		return (intptr_t) s;
+		if (num) {
+			char* result = *(char**)((intptr_t)pr_globals + num);
+
+			return result ? result : "";
+		}
+		else {
+			return "";
+		}
+
+	case VM_BYTECODE:
+		if (!num)
+			return "";
+		qvm = (qvm_t*)(sv_vm->hInst);
+		if ( num & ( ~qvm->ds_mask) )
+		{
+			Con_DPrintf("PR2_GetString error off %8x/%8x\n", num, qvm->len_ds );
+			return "";
+		}
+		return (char *) (qvm->ds+ num);
+	}
+
+	return NULL;
+}
+
+char *PR2_GetEntityString(intptr_t num)
+{
+	qvm_t *qvm;
+
+	if(!sv_vm)
+		return PR1_GetString(num);
+
+	switch (sv_vm->type)
+	{
+	case VM_NONE:
+		return PR1_GetString(num);
+
+	case VM_NATIVE:
+		if (num) {
+			char* result = *(char**)((intptr_t)sv.edicts + num);
+
+			return result ? result : "";
+		}
+		else {
+			return "";
+		}
+
+	case VM_BYTECODE:
+		if (!num)
+			return "";
+		qvm = (qvm_t*)(sv_vm->hInst);
+		if ( num & ( ~qvm->ds_mask) )
+		{
+			Con_DPrintf("PR2_GetString error off %8x/%8x\n", num, qvm->len_ds );
+			return "";
+		}
+		return (char *) (qvm->ds+ num);
+	}
+
+	return NULL;
+}
+
+//===========================================================================
+// PR2_SetString
+// FIXME for VM
+//===========================================================================
+void PR2_SetEntityString(edict_t* ed, string_t* target, char* s)
+{
+	qvm_t *qvm;
+	intptr_t off;
+	if (!sv_vm) {
+		PR1_SetString(target, s);
+		return;
+	}
+
+	switch (sv_vm->type)
+	{
+	case VM_NONE:
+		PR1_SetString(target, s);
+		return;
+
+	case VM_NATIVE:
+		{
+			int offset = (int)*target;
+
+			if (offset > 0 && offset < pr_edict_size * sv.max_edicts - sizeof(char*)) {
+				char** location = (char**)((intptr_t)sv.edicts + offset);
+
+				//((eval_t *)((byte *)&(client->edict)->v + fofs_hide_players))->_int
+				*location = s;
+			}
+		}
+		return;
 
 	case VM_BYTECODE:
 		qvm = (qvm_t*)(sv_vm->hInst);
 		off = (byte*)s - qvm->ds;
-		if (off &(~qvm->ds_mask))
-			return 0;
-
-		return off;
-		break;
+		if (off &(~qvm->ds_mask)) {
+			*target = 0;
+		}
+		else {
+			*target = off;
+		}
+		return;
 	}
 
-	return 0;
+	*target = 0;
+}
+
+void PR2_SetGlobalString(string_t* target, char* s)
+{
+	qvm_t *qvm;
+	intptr_t off;
+	if (!sv_vm) {
+		PR1_SetString(target, s);
+		return;
+	}
+
+	switch (sv_vm->type)
+	{
+	case VM_NONE:
+		PR1_SetString(target, s);
+		return;
+
+	case VM_NATIVE:
+	{
+		int offset = (int)*target;
+
+		if (offset > 0) {
+			*(char**)(((intptr_t)pr_global_struct) + offset) = s;
+		}
+	}
+	return;
+
+	case VM_BYTECODE:
+		qvm = (qvm_t*)(sv_vm->hInst);
+		off = (byte*)s - qvm->ds;
+		if (off &(~qvm->ds_mask)) {
+			*target = 0;
+		}
+		else {
+			*target = off;
+		}
+		return;
+	}
+
+	*target = 0;
 }
 
 /*
@@ -419,6 +548,16 @@ void PR2_PausedTic(float duration)
 		VM_Call(sv_vm, GAME_PAUSED_TIC, duration*1000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 	else
 		PR1_PausedTic(duration);
+}
+
+void PR2_ClearEdict(edict_t* e)
+{
+	if (sv_vm && sv_vm->type == VM_NATIVE) {
+		int old_self = pr_global_struct->self;
+		pr_global_struct->self = EDICT_TO_PROG(e);
+		VM_Call(sv_vm, GAME_CLEAR_EDICT, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+		pr_global_struct->self = old_self;
+	}
 }
 
 #endif /* USE_PR2 */
