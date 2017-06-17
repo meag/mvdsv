@@ -77,8 +77,8 @@ void		PR2_PausedTic(float duration);
 #define PR_PausedTic PR2_PausedTic
 
 char*		PR2_GetString(intptr_t reference);
-#define		PR_GetString PR2_GetString
-char*       PR2_GetEntityString(intptr_t reference);
+//#define		PR_GetString PR2_GetString
+char*       PR2_GetEntityString(string_t reference);
 #define     PR_GetEntityString PR2_GetEntityString
 void        PR2_SetEntityString(edict_t* ed, string_t* target, char* value);
 void        PR2_SetGlobalString(string_t* target, char* value);

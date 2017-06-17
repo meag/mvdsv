@@ -1810,7 +1810,7 @@ const char* SV_MVDDemoName(void)
 
 	for (d = demo.dest; d; d = d->nextdest) {
 		if (d->desttype == DEST_STREAM) {
-			continue; // streams are not saved on to HDD, so inogre it...
+			continue; // streams are not saved on to HDD, so ignore it...
 		}
 		if (d->name && d->name[0]) {
 			return d->name;

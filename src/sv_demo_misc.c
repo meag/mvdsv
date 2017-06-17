@@ -739,8 +739,6 @@ void SV_MVDInfoAdd_f (void)
 			return;
 		}
 
-//		snprintf(path, MAX_OSPATH, "%s/%s/%s", fs_gamedir, demo.path, SV_MVDName2Txt(demo.name));
-// FIXME: dunno is this right, just using first dest, also may be we must use demo.dest->path instead of sv_demoDir
 		snprintf(path, MAX_OSPATH, "%s/%s/%s", fs_gamedir, sv_demoDir.string, SV_MVDName2Txt(demoname));
 	}
 	else {

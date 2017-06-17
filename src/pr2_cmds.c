@@ -67,7 +67,6 @@ void PF2_GetApiVersion(byte* base, uintptr_t mask, pr2val_t* stack, pr2val_t*ret
 
 void PF2_GetEntityToken(byte* base, uintptr_t mask, pr2val_t* stack, pr2val_t*retval)
 {
-
 	pr2_ent_data_ptr = COM_Parse(pr2_ent_data_ptr);
 	strlcpy((char*)VM_POINTER(base,mask,stack[0].string), com_token,  stack[1]._int);
 
@@ -2981,8 +2980,11 @@ extern field_t *fields;
 
 void PR2_InitProg()
 {
-	if ( !sv_vm )
-	{
+	extern cvar_t sv_pr2references;
+
+	Cvar_SetValue(&sv_pr2references, 0.0f);
+
+	if ( !sv_vm ) {
 		PR1_InitProg();
 		return;
 	}
@@ -2991,20 +2993,21 @@ void PR2_InitProg()
 
 	gamedata = (gameData_t *) VM_Call(sv_vm, GAME_INIT, (int) (sv.time * 1000),
 	                                  (int) (Sys_DoubleTime() * 100000), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-
-	if ( !gamedata )
+	if (!gamedata) {
 		SV_Error("PR2_InitProg gamedata == NULL");
+	}
 
 	gamedata = (gameData_t *)PR2_GetString((intptr_t)gamedata);
-	if (gamedata->APIversion < GAME_API_VERSION_MIN || gamedata->APIversion > GAME_API_VERSION)
-	{
-		if (GAME_API_VERSION_MIN == GAME_API_VERSION)
-			SV_Error("PR2_InitProg: Incorrect API version (%i should be %i)",
-				gamedata->APIversion, GAME_API_VERSION);
-		else
-			SV_Error("PR2_InitProg: Incorrect API version (%i should be between %i and %i)",
-				gamedata->APIversion, GAME_API_VERSION_MIN, GAME_API_VERSION);
+	if (gamedata->APIversion < GAME_API_VERSION_MIN || gamedata->APIversion > GAME_API_VERSION) {
+		if (GAME_API_VERSION_MIN == GAME_API_VERSION) {
+			SV_Error("PR2_InitProg: Incorrect API version (%i should be %i)", gamedata->APIversion, GAME_API_VERSION);
+		}
+		else {
+			SV_Error("PR2_InitProg: Incorrect API version (%i should be between %i and %i)", gamedata->APIversion, GAME_API_VERSION_MIN, GAME_API_VERSION);
+		}
 	}
+
+	sv_vm->pr2_references = gamedata->APIversion >= 15 && (int)sv_pr2references.value;
 
 	sv.edicts = (edict_t *)PR2_GetString((intptr_t)gamedata->ents);
 	pr_global_struct = (globalvars_t*)PR2_GetString((intptr_t)gamedata->global);
