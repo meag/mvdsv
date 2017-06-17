@@ -1803,3 +1803,19 @@ void SV_MVDInit (void)
 
 	SV_QTV_Init();
 }
+
+const char* SV_MVDDemoName(void)
+{
+	mvddest_t* d;
+
+	for (d = demo.dest; d; d = d->nextdest) {
+		if (d->desttype == DEST_STREAM) {
+			continue; // streams are not saved on to HDD, so inogre it...
+		}
+		if (d->name && d->name[0]) {
+			return d->name;
+		}
+	}
+
+	return NULL;
+}
