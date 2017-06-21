@@ -529,41 +529,51 @@ void SV_ClipToLinks ( areanode_t *node, moveclip_t *clip )
 	for (i = 0; i < numtouch; i++)
 	{
 		// might intersect, so do an exact clip
-		if (clip->trace.allsolid)
+		if (clip->trace.allsolid) {
 			return; // return!!!
+		}
 
 		touch = touchlist[i];
-		if (touch == clip->passedict)
+		if (touch == clip->passedict) {
 			continue;
-		if (touch->v.solid == SOLID_TRIGGER)
-			SV_Error ("Trigger in clipping list");
+		}
+		if (touch->v.solid == SOLID_TRIGGER) {
+			SV_Error("Trigger in clipping list");
+		}
 
-		if ((clip->type & MOVE_NOMONSTERS) && touch->v.solid != SOLID_BSP)
+		if ((clip->type & MOVE_NOMONSTERS) && touch->v.solid != SOLID_BSP) {
 			continue;
+		}
 
-		if (clip->passedict && clip->passedict->v.size[0] && !touch->v.size[0])
+		if (clip->passedict && clip->passedict->v.size[0] && !touch->v.size[0]) {
 			continue;	// points never interact
+		}
 
-		if (clip->type & MOVE_LAGGED)
-		{
+		if (clip->type & MOVE_LAGGED) {
 			//can't touch lagged ents - we do an explicit test for them later in SV_AntilagClipCheck.
-			if (touch->e->entnum - 1 < w.maxlagents)
-				if (w.lagents[touch->e->entnum - 1].present)
+			if (touch->e->entnum - 1 < (int)w.maxlagents) {
+				if (w.lagents[touch->e->entnum - 1].present) {
 					continue;
+				}
+			}
 		}
 
 		if (clip->passedict)
 		{
-			if (PROG_TO_EDICT(touch->v.owner) == clip->passedict)
+			if (PROG_TO_EDICT(touch->v.owner) == clip->passedict) {
 				continue;	// don't clip against own missiles
-			if (PROG_TO_EDICT(clip->passedict->v.owner) == touch)
+			}
+			if (PROG_TO_EDICT(clip->passedict->v.owner) == touch) {
 				continue;	// don't clip against owner
+			}
 		}
 
-		if ((int)touch->v.flags & FL_MONSTER)
-			trace = SV_ClipMoveToEntity (touch, NULL, clip->start, clip->mins2, clip->maxs2, clip->end);
-		else
-			trace = SV_ClipMoveToEntity (touch, NULL, clip->start, clip->mins, clip->maxs, clip->end);
+		if ((int)touch->v.flags & FL_MONSTER) {
+			trace = SV_ClipMoveToEntity(touch, NULL, clip->start, clip->mins2, clip->maxs2, clip->end);
+		}
+		else {
+			trace = SV_ClipMoveToEntity(touch, NULL, clip->start, clip->mins, clip->maxs, clip->end);
+		}
 
 		// qqshka: I have NO idea why we keep startsolid but let do it.
 
@@ -655,7 +665,7 @@ void SV_AntilagClipCheck ( areanode_t *node, moveclip_t *clip )
 	trace_t trace;
 	edict_t *touch;
 	vec3_t lp;
-	int i;
+	size_t i;
 
 	for (i = 0; i < w.maxlagents; i++)
 	{

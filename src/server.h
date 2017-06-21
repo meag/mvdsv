@@ -68,9 +68,9 @@ typedef struct
 	double		physicstime;		// last time physics was run
 
 	int			lastcheck;			// used by PF_checkclient
-	double		lastchecktime;			// for monster ai
+	double		lastchecktime;		// for monster ai
 
-	qbool		paused;				// are we paused?
+	int         paused;             // are we paused?
 	double		pausedsince;		// Sys_DoubleTime() when pause started
 
 	qbool		loadgame;			// handle connections specially
@@ -125,7 +125,7 @@ typedef struct
 	qbool		   mvdrecording;
 
 	entity_state_t static_entities[512];
-	int            static_entity_count;
+	unsigned int   static_entity_count;
 } server_t;
 
 #define	NUM_SPAWN_PARMS 16

@@ -468,7 +468,7 @@ svtcpstream_t *sv_tcp_connection_new(int sock, netadr_t from, char *buf, int buf
 	st->waitingforprotocolconfirmation = true;
 	st->socketnum = sock;
 	st->remoteaddr = from;
-	if (buf_len > 0 && buf_len < sizeof(st->inbuffer))
+	if (buf_len > 0 && buf_len < (int)sizeof(st->inbuffer))
 	{
 		memmove(st->inbuffer, buf, buf_len);
 		st->inlen = buf_len;
@@ -1232,32 +1232,40 @@ void NET_GetLocalAddress (int socket, netadr_t *out)
 	struct sockaddr_storage address;
 	size_t namelen;
 	netadr_t adr = {0};
+#ifndef SERVERONLY
 	qbool notvalid = false;
+#endif
 
 	strlcpy (buff, "localhost", sizeof (buff));
 	gethostname (buff, sizeof (buff));
 	buff[sizeof(buff) - 1] = 0;
 
-	if (!NET_StringToAdr (buff, &adr))	//urm
-		NET_StringToAdr ("127.0.0.1", &adr);
+	if (!NET_StringToAdr(buff, &adr)) {
+		NET_StringToAdr("127.0.0.1", &adr);
+	}
 
 	namelen = sizeof(address);
-	if (getsockname (socket, (struct sockaddr *)&address, (socklen_t *)&namelen) == -1)
-	{
+	if (getsockname (socket, (struct sockaddr *)&address, (socklen_t *)&namelen) == -1) {
+#ifndef SERVERONLY
 		notvalid = true;
+#endif
 		NET_StringToSockaddr("0.0.0.0", (struct sockaddr_storage *)&address);
 //		Sys_Error ("NET_Init: getsockname:", strerror(qerrno));
 	}
 
+	//socket was set to auto
 	SockadrToNetadr(&address, out);
-	if (!*(int*)out->ip)	//socket was set to auto
+	if (!*(int*)out->ip) {
 		*(int *)out->ip = *(int *)adr.ip;	//change it to what the machine says it is, rather than the socket.
+	}
 
 #ifndef SERVERONLY
-	if (notvalid)
-		Com_Printf_State (PRINT_FAIL, "Couldn't detect local ip\n");
-	else
+	if (notvalid) {
+		Com_Printf_State(PRINT_FAIL, "Couldn't detect local ip\n");
+	}
+	else {
 		Com_Printf_State (PRINT_OK, "IP address %s\n", NET_AdrToString (*out));
+	}
 #endif
 }
 

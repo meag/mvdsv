@@ -48,31 +48,31 @@ profile_t;
 profile_t profile_funcs[MAX_PROFILE_FUNCS];
 int num_profile_func;
 
-qbool PR2_IsValidReadAddress(register qvm_t * qvm, intptr_t address)
+qbool PR2_IsValidReadAddress(register qvm_t * qvm, uintptr_t address)
 {
-	if (address >= (intptr_t)&sv && address < ((intptr_t)&sv) + sizeof(sv) - 4) {
+	if (address >= (uintptr_t)&sv && address < ((uintptr_t)&sv) + sizeof(sv) - 4) {
 		return true;
 	}
-	if (address >= (intptr_t)&svs.clients && address < ((intptr_t)&svs.clients) + sizeof(svs.clients) - 4) {
+	if (address >= (uintptr_t)&svs.clients && address < ((uintptr_t)&svs.clients) + sizeof(svs.clients) - 4) {
 		return true;
 	}
-	if (address == (intptr_t)VersionStringFull()) {
+	if (address == (uintptr_t)VersionStringFull()) {
 		return true;
 	}
 
-	return (address >= (intptr_t)qvm->ds && address < (intptr_t)qvm->ds + qvm->len_ds);
+	return (address >= (uintptr_t)qvm->ds && address < (uintptr_t)qvm->ds + qvm->len_ds);
 }
 
-qbool PR2_IsValidWriteAddress(register qvm_t * qvm, intptr_t address)
+qbool PR2_IsValidWriteAddress(register qvm_t * qvm, uintptr_t address)
 {
-	if (address >= (intptr_t)&sv && address < ((intptr_t)&sv) + sizeof(sv) - 4) {
+	if (address >= (uintptr_t)&sv && address < ((uintptr_t)&sv) + sizeof(sv) - 4) {
 		return true;
 	}
-	if (address >= (intptr_t)&svs.clients && address < ((intptr_t)&svs.clients) + sizeof(svs.clients) - 4) {
+	if (address >= (uintptr_t)&svs.clients && address < ((uintptr_t)&svs.clients) + sizeof(svs.clients) - 4) {
 		return true;
 	}
 
-	return (address >= (intptr_t)qvm->ds && address < (intptr_t)qvm->ds + qvm->len_ds);
+	return (address >= (uintptr_t)qvm->ds && address < (uintptr_t)qvm->ds + qvm->len_ds);
 }
 
 #define OLD_VM_POINTER(base,mask,x) ((void*)((char *)base+((x)&mask)))
@@ -82,8 +82,8 @@ void* VM_POINTER(byte* base, uintptr_t mask, intptr_t offset)
 	intptr_t address = (intptr_t) base + offset;
 	qvm_t* qvm = (qvm_t*) sv_vm->hInst;
 
-	if (PR2_IsValidWriteAddress(qvm, (intptr_t)base + offset)) {
-		return (void*)((intptr_t)base + offset);
+	if (PR2_IsValidWriteAddress(qvm, address)) {
+		return (void*)(address);
 	}
 
 	return OLD_VM_POINTER(base, mask, offset);

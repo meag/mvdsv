@@ -120,8 +120,7 @@ void Cbuf_InsertTextEx (cbuf_t *cbuf, const char *text)
 	unsigned int new_bufsize;
 
 	len = strlen(text);
-
-	if (len < cbuf->text_start)
+	if (len < (size_t)cbuf->text_start)
 	{
 		memcpy (cbuf->text_buf + (cbuf->text_start - len - 1), text, len);
 		cbuf->text_buf[cbuf->text_start-1] = '\n';
@@ -151,11 +150,12 @@ void Cbuf_InsertTextEx (cbuf_t *cbuf, const char *text)
 Cbuf_Execute
 ============
 */
+#define MAX_LINE_LENGTH 1024
 void Cbuf_ExecuteEx (cbuf_t *cbuf)
 {
 	int i;
 	char *text;
-	char line[1024];
+	char line[MAX_LINE_LENGTH];
 	int quotes;
 	int cursize;
 	int semicolon = 0;
@@ -173,8 +173,9 @@ void Cbuf_ExecuteEx (cbuf_t *cbuf)
 		{
 			if (text[i] == '"')
 				quotes++;
-/* EXPERIMENTAL: Forbid ';' as commands separator, because ktpro didn't quote arguments
-   from admin users. Example: cmd fkick "N;quit" => kick N;quit => server will exit.*/
+
+			/* EXPERIMENTAL: Forbid ';' as commands separator, because ktpro didn't quote arguments
+			   from admin users. Example: cmd fkick "N;quit" => kick N;quit => server will exit.*/
 			if (!(quotes & 1) && text[i] == ';')	// don't break if inside a quoted string
 			{
 				switch (semicolon)
@@ -202,17 +203,15 @@ void Cbuf_ExecuteEx (cbuf_t *cbuf)
 
 		// don't execute lines without ending \n; this fixes problems with
 		// partially stuffed aliases not being executed properly
-
-		if (i < sizeof(line))
-		{
+		if (i < MAX_LINE_LENGTH) {
 			memcpy(line, text, i);
 			line[i] = 0;
 
-			if (i > 0 && line[i - 1] == '\r')
+			if (i > 0 && line[i - 1] == '\r') {
 				line[i - 1] = 0;	// remove DOS ending CR
+			}
 		}
-		else
-		{
+		else {
 			line[0] = 0;
 			Sys_Printf("Cbuf_ExecuteEx: too long\n");
 		}
@@ -732,19 +731,22 @@ static int Cmd_CommandCompare (const void *p1, const void *p2)
 
 static void Cmd_CmdList_f (void)
 {
-	int	i, m, count;
+	size_t i, m;
+	size_t count;
 	cmd_function_t *sorted_cmds[128];
 	cmd_function_t *cmd;
 	char *pattern;
 
 #define MAX_SORTED_CMDS (sizeof (sorted_cmds) / sizeof (sorted_cmds[0]))
 
-	for (cmd = cmd_functions, count = 0; cmd && count < MAX_SORTED_CMDS; cmd = cmd->next, count++)
+	for (cmd = cmd_functions, count = 0; cmd && count < MAX_SORTED_CMDS; cmd = cmd->next, count++) {
 		sorted_cmds[count] = cmd;
+	}
 	qsort (sorted_cmds, count, sizeof (cmd_function_t *), Cmd_CommandCompare);
 
-	if (count == MAX_SORTED_CMDS)
-		assert (!"count == MAX_SORTED_CMDS");
+	if (count == MAX_SORTED_CMDS) {
+		assert(!"count == MAX_SORTED_CMDS");
+	}
 
 	pattern = (Cmd_Argc() > 1) ? Cmd_Argv (1) : NULL;
 

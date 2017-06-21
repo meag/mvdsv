@@ -1134,26 +1134,25 @@ void QTV_ExecuteCmd(mvddest_t *d, char *cmd)
 
 void QTV_ReadInput( mvddest_t *d )
 {
-	int len, parse_end, clc;
+	int parse_end, clc;
+	size_t len;
 	netmsg_t buf;
 
-	if (d->error)
+	if (d->error) {
 		return;
+	}
 
 	len = sizeof(d->inbuffer) - d->inbuffersize - 1; // -1 since it null terminated
 
-	if (len)
-	{
+	if (len) {
 		len = recv(d->socket, d->inbuffer + d->inbuffersize, len, 0);
 
-		if (len == 0)
-		{
+		if (len == 0) {
 			Sys_Printf("QTV_ReadInput: read error from QTV client, dropping\n");
 			d->error = true;
 			return;
 		}
-		else if (len < 0)
-		{
+		else if (len < 0) {
 			len = 0;
 		}
 
@@ -1161,8 +1160,9 @@ void QTV_ReadInput( mvddest_t *d )
 		d->inbuffer[d->inbuffersize] = 0; // null terminated
 	}
 
-	if (d->inbuffersize < 2)
+	if (d->inbuffersize < 2) {
 		return; // we need at least size
+	}
 
 	InitNetMsg(&buf, d->inbuffer, d->inbuffersize);
 	buf.cursize	= d->inbuffersize; // we laredy have some data in buffer
@@ -1171,10 +1171,7 @@ void QTV_ReadInput( mvddest_t *d )
 
 	while(buf.readpos < buf.cursize)
 	{
-//		Sys_Printf("%d %d\n", buf.readpos, buf.cursize);
-
-		if (buf.readpos > buf.cursize)
-		{
+		if (buf.readpos > buf.cursize) {
 			d->error = true;
 			Sys_Printf("QTV_ReadInput: Read past end of parse buffer\n");
 			return;
@@ -1182,20 +1179,20 @@ void QTV_ReadInput( mvddest_t *d )
 
 		buf.startpos = buf.readpos;
 
-		if (buf.cursize - buf.startpos < 2)
+		if (buf.cursize - buf.startpos < 2) {
 			break; // we need at least size
+		}
 
 		len = ReadShort(&buf);
-
-		if (len > (int)sizeof(d->inbuffer) - 1 || len < 3)
-		{
+		if (len > (int)sizeof(d->inbuffer) - 1 || len < 3) {
 			d->error = true;
 			Sys_Printf("QTV_ReadInput: can't handle such long/short message: %i\n", len);
 			return;
 		}
 
-		if (len > buf.cursize - buf.startpos)
+		if (len > buf.cursize - buf.startpos) {
 			break; // not enough data yet
+		}
 
 		parse_end = buf.startpos + len; // so later we know which part of buffer we alredy served
 
@@ -1216,8 +1213,7 @@ void QTV_ReadInput( mvddest_t *d )
 		}
 	}
 
-	if (parse_end)
-	{
+	if (parse_end) {
 		d->inbuffersize -= parse_end;
 		memmove(d->inbuffer, d->inbuffer + parse_end, d->inbuffersize);
 	}

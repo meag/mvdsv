@@ -24,8 +24,8 @@
 
 #include "qwsvdef.h"
 
-qbool PR2_IsValidWriteAddress(register qvm_t * qvm, intptr_t address);
-qbool PR2_IsValidReadAddress(register qvm_t * qvm, intptr_t address);
+qbool PR2_IsValidWriteAddress(register qvm_t * qvm, uintptr_t address);
+qbool PR2_IsValidReadAddress(register qvm_t * qvm, uintptr_t address);
 
 gameData_t *gamedata;
 

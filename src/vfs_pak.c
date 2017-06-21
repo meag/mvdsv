@@ -222,33 +222,29 @@ static void FSPAK_BuildHash(void *handle)
 static qbool FSPAK_FLocate(void *handle, flocation_t *loc, const char *filename, void *hashedresult)
 {
 	packfile_t *pf = hashedresult;
-	int i, len;
+	int i;
 	pack_t		*pak = handle;
 
-// look through all the pak file elements
-
-	if (pf)
-	{	//is this a pointer to a file in this pak?
-		if (pf < pak->files || pf > pak->files + pak->numfiles)
+	// look through all the pak file elements
+	if (pf) {
+		//is this a pointer to a file in this pak?
+		if (pf < pak->files || pf > pak->files + pak->numfiles) {
 			return false;	//was found in a different path
+		}
 	}
 	else
 	{
-		for (i=0 ; i<pak->numfiles ; i++)	//look for the file
-		{
-			if (!strcmp (pak->files[i].name, filename))
-			{
+		//look for the file
+		for (i = 0; i < pak->numfiles; i++) {
+			if (!strcmp(pak->files[i].name, filename)) {
 				pf = &pak->files[i];
 				break;
 			}
 		}
 	}
 
-	if (pf)
-	{
-		len = pf->filelen;
-		if (loc)
-		{
+	if (pf) {
+		if (loc) {
 			loc->index = pf - pak->files;
 			snprintf(loc->rawname, sizeof(loc->rawname), "%s/%s", pak->filename, filename);
 			loc->offset = pf->filepos;
@@ -288,24 +284,22 @@ of the list so they override previous pack files.
 */
 static void *FSPAK_LoadPackFile (vfsfile_t *file, const char *desc)
 {
-	dpackheader_t	header;
-	int				i;
-	packfile_t		*newfiles;
-	int				numpackfiles;
-	pack_t			*pack;
-	vfsfile_t		*packhandle;
-	dpackfile_t		info;
-	int read;
-	vfserrno_t err;
+	dpackheader_t   header;
+	int             i;
+	packfile_t      *newfiles;
+	int             numpackfiles;
+	pack_t          *pack;
+	vfsfile_t       *packhandle;
+	dpackfile_t     info;
+	vfserrno_t      err;
 
 	packhandle = file;
-	if (packhandle == NULL)
+	if (packhandle == NULL) {
 		return NULL;
+	}
 
 	VFS_READ(packhandle, &header, sizeof(header), &err);
-	if (header.id[0] != 'P' || header.id[1] != 'A'
-	|| header.id[2] != 'C' || header.id[3] != 'K')
-	{
+	if (header.id[0] != 'P' || header.id[1] != 'A' || header.id[2] != 'C' || header.id[3] != 'K') {
 		return NULL;
 	}
 	header.dirofs = LittleLong (header.dirofs);
@@ -333,7 +327,7 @@ static void *FSPAK_LoadPackFile (vfsfile_t *file, const char *desc)
 	for (i=0 ; i<numpackfiles ; i++)
 	{
 		*info.name = '\0';
-		read = VFS_READ(packhandle, &info, sizeof(info), &err);
+		VFS_READ(packhandle, &info, sizeof(info), &err);
 /*
 		for (j=0 ; j<sizeof(info) ; j++)
 			CRC_ProcessByte(&crc, ((qbyte *)&info)[j]);

@@ -1083,7 +1083,7 @@ qbool SV_MVD_Record (mvddest_t *dest, qbool mapchange)
 
     	// and here we memset() not whole demo_t struct, but part,
     	// so demo.dest and demo.pendingdest is not overwriten
-		memset(&demo, 0, ((int)&(((demo_t *)0)->mem_set_point)));
+		memset(&demo, 0, (size_t)((intptr_t)&(((demo_t *)0)->mem_set_point)));
 
 		for (i = 0; i < UPDATE_BACKUP; i++)
 		{
@@ -1276,7 +1276,7 @@ void SV_MVD_SendInitialGamestate(mvddest_t *dest)
 
 	// static entities
 	{
-		int i, j;
+		size_t i, j;
 		entity_state_t from = { 0 };
 
 		for (i = 0; i < sv.static_entity_count; ++i) {

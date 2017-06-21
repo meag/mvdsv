@@ -467,9 +467,9 @@ Cmd_Modellist_f
 */
 static void Cmd_Modellist_f (void)
 {
-	char		**s;
-	unsigned	n;
-	int         i;
+	char        **s;
+	unsigned    n;
+	unsigned    i;
 	unsigned    maxclientsupportedmodels;
 
 	if (sv_client->state != cs_connected) {
@@ -976,7 +976,7 @@ static qbool SV_DownloadNextFile (void)
 	{
 		Con_Printf((char *)Q_yelltext((unsigned char*)va("Demo number %d not found.\n",
 			(num & 0xFF000000) ? -(num >> 24) : 
-				((num & 0x00800000) ? (num | 0xFF000000) : num) )));
+				((num & 0x00800000) ? (int)(num | 0xFF000000) : num) )));
 		return SV_DownloadNextFile();
 	}
 	//Con_Printf("downloading demos/%s\n",name);
@@ -1407,7 +1407,7 @@ static void Cmd_Download_f(void)
 		if (!name)
 		{
 			Con_Printf((char *)Q_yelltext((unsigned char*)va("Demo number %d not found.\n",
-				(num & 0xFF000000) ? -(num >> 24) : ((num & 0x00800000) ? (num | 0xFF000000) : num) )));
+				(num & 0xFF000000) ? -(num >> 24) : ((num & 0x00800000) ? (int)(num | 0xFF000000) : num) )));
 			goto deny_download;
 		}
 		//Con_Printf("downloading demos/%s\n",name);
@@ -2890,8 +2890,9 @@ void SV_VoiceSendPacket(client_t *client, sizebuf_t *buf)
 
 		if (send)
 		{
-			if (buf->maxsize - buf->cursize < ring->datalen+5)
+			if (buf->maxsize - buf->cursize < (int)ring->datalen + 5) {
 				break;
+			}
 			MSG_WriteByte(buf, svc_fte_voicechat);
 			MSG_WriteByte(buf, ring->sender);
 			MSG_WriteByte(buf, ring->gen);

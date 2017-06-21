@@ -41,17 +41,20 @@ eval_t *PR2_GetEdictFieldValue(edict_t *ed, char *field)
 	return NULL;
 }
 
-int ED2_FindFieldOffset (char *field)
+int ED2_FindFieldOffset(char *field)
 {
 	char *s;
 	field_t	*f;
 
-	if (!sv_vm)
+	if (!sv_vm) {
 		return ED1_FindFieldOffset(field);
+	}
 
-	for (f = fields; (s = PR2_GetString(f->name)) && *s; f++)
-		if (!strcasecmp(PR2_GetString(f->name), field))
-			return f->ofs-((int)&(((edict_t *)0)->v));
+	for (f = fields; (s = PR2_GetString(f->name)) && *s; f++) {
+		if (!strcasecmp(PR2_GetString(f->name), field)) {
+			return f->ofs - (int)((intptr_t)&(((edict_t *)0)->v));
+		}
+	}
 
 	return 0;
 }

@@ -338,15 +338,18 @@ static int Cvar_CvarCompare (const void *p1, const void *p2)
 
 static void Cvar_CvarList_f (void)
 {
-	int i, m, count;
+	int m;
+	size_t i;
+	size_t count;
 	cvar_t *sorted_cvars[512];
 	cvar_t *var;
 	char *pattern;
 
 #define MAX_SORTED_CVARS (sizeof (sorted_cvars) / sizeof (sorted_cvars[0]))
 
-	for (var = cvar_vars, count = 0; var && count < MAX_SORTED_CVARS; var = var->next, count++)
+	for (var = cvar_vars, count = 0; var && count < MAX_SORTED_CVARS; var = var->next, count++) {
 		sorted_cvars[count] = var;
+	}
 	qsort (sorted_cvars, count, sizeof (cvar_t *), Cvar_CvarCompare);
 
 	if (count == MAX_SORTED_CVARS)
@@ -380,7 +383,9 @@ List all cvars and their current value
 
 static void Cvar_CvarDump_f (void)
 {
-	int i, m, count;
+	int m;
+	size_t i;
+	size_t count;
 	cvar_t *sorted_cvars[512];
 	cvar_t *var;
 	char *pattern;

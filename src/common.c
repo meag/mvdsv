@@ -678,10 +678,11 @@ char *COM_Parse (char *data)
 char *COM_ParseToken (const char *data, const char *punctuation)
 {
 	int c;
-	int	len;
+	size_t len;
 
-	if (!punctuation)
+	if (!punctuation) {
 		punctuation = DEFAULT_PUNCTUATION;
+	}
 
 	len = 0;
 	com_token[0] = 0;
@@ -694,10 +695,8 @@ char *COM_ParseToken (const char *data, const char *punctuation)
 
 	// skip whitespace
 skipwhite:
-	while ((c = *(unsigned char *) data) <= ' ')
-	{
-		if (c == 0)
-		{
+	while ((c = *(unsigned char *) data) <= ' ') {
+		if (c == 0) {
 			com_tokentype = TTP_UNKNOWN;
 			return NULL; // end of file;
 		}
@@ -708,19 +707,19 @@ skipwhite:
 	// skip // comments
 	if (c == '/')
 	{
-		if (data[1] == '/')
-		{
-			while (*data && *data != '\n')
+		if (data[1] == '/') {
+			while (*data && *data != '\n') {
 				data++;
+			}
 
 			goto skipwhite;
 		}
-		else if (data[1] == '*')
-		{
+		else if (data[1] == '*') {
 			data += 2;
 
-			while (*data && (*data != '*' || data[1] != '/'))
+			while (*data && (*data != '*' || data[1] != '/')) {
 				data++;
+			}
 
 			data += 2;
 			goto skipwhite;
@@ -735,16 +734,13 @@ skipwhite:
 		data++;
 		while (1)
 		{
-			if (len >= TOKENSIZE - 1)
-			{
+			if (len >= TOKENSIZE - 1) {
 				com_token[len] = '\0';
 				return (char*) data;
 			}
 
 			c = *data++;
-
-			if (c=='\"' || !c)
-			{
+			if (c=='\"' || !c) {
 				com_token[len] = 0;
 				return (char*) data;
 			}

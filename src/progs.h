@@ -164,9 +164,9 @@ int NUM_FOR_EDICT(edict_t *e);
 
 extern	int		type_size[8];
 
-typedef void		(*builtin_t) (void);
-extern	builtin_t	*pr_builtins;
-extern	int		pr_numbuiltins;
+typedef void        (*builtin_t) (void);
+extern	builtin_t   *pr_builtins;
+extern	size_t      pr_numbuiltins;
 
 extern	int		pr_argc;
 

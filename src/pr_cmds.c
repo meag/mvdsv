@@ -2801,11 +2801,11 @@ static struct { int num; builtin_t func; } ext_builtins[] =
 #define num_ext_builtins (sizeof(ext_builtins)/sizeof(ext_builtins[0]))
 
 builtin_t *pr_builtins = NULL;
-int pr_numbuiltins = 0;
+size_t pr_numbuiltins = 0;
 
 void PR_InitBuiltins (void)
 {
-	int i;
+	size_t i;
 
 	if (pr_builtins)
 		return; // We don't need reinit it.
@@ -2815,8 +2815,9 @@ void PR_InitBuiltins (void)
 	// We have at least iD builtins.
 	pr_numbuiltins = num_std_builtins;
 	// Find highest builtin number to see how much space we actually need.
-	for (i = 0; i < num_ext_builtins; i++)
-		pr_numbuiltins = max(ext_builtins[i].num + 1, pr_numbuiltins);
+	for (i = 0; i < num_ext_builtins; i++) {
+		pr_numbuiltins = max((size_t)ext_builtins[i].num + 1, pr_numbuiltins);
+	}
 	// Allocate builtins array.
 	pr_builtins = (builtin_t *) Q_malloc(pr_numbuiltins * sizeof(builtin_t));
 	// Init new array to PF_Fixme().

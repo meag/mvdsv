@@ -334,6 +334,10 @@ static void Web_SubmitRequestForm(const char* url, struct curl_httppost *first_f
 		CURLFORM_COPYCONTENTS, central_server_authkey.string,
 		CURLFORM_END
 	);
+	if (code) {
+		Con_Printf("Internal error submitting web request\n");
+		return;
+	}
 
 	data->onCompleteCallback = callback;
 	data->time_sent = sv.time;
@@ -367,12 +371,20 @@ void Central_VerifyChallengeResponse(client_t* client, const char* challenge, co
 		CURLFORM_COPYCONTENTS, challenge,
 		CURLFORM_END
 	);
+	if (code) {
+		Con_Printf("Internal error submitting web request\n");
+		return;
+	}
 
 	code = curl_formadd(&first_form_ptr, &last_form_ptr,
 		CURLFORM_PTRNAME, "response",
 		CURLFORM_COPYCONTENTS, response,
 		CURLFORM_END
 	);
+	if (code) {
+		Con_Printf("Internal error submitting web request\n");
+		return;
+	}
 
 	Web_ConstructURL(url, VERIFY_RESPONSE_PATH, sizeof(url));
 
@@ -394,6 +406,10 @@ void Central_GenerateChallenge(client_t* client, const char* username)
 		CURLFORM_COPYCONTENTS, username,
 		CURLFORM_END
 	);
+	if (code) {
+		Con_Printf("Internal error submitting web request\n");
+		return;
+	}
 
 	client->login_request_time = sv.time;
 	Web_SubmitRequestForm(url, first_form_ptr, last_form_ptr, Auth_GenerateChallengeResponse, NULL, client);
@@ -441,8 +457,8 @@ static void Web_SendRequest(qbool post)
 
 	for (i = 3; i < Cmd_Argc() - 1; i += 2) {
 		char encoded_value[128];
-		int encoded_length = 0;
-		int j;
+		size_t encoded_length = 0;
+		size_t j;
 		char* name;
 		char* value;
 		CURLFORMcode code;
@@ -459,8 +475,7 @@ static void Web_SendRequest(qbool post)
 			CURLFORM_COPYCONTENTS, encoded_value,
 			CURLFORM_END
 		);
-
-		if (code != CURLE_OK) {
+		if (code) {
 			curl_formfree(first_form_ptr);
 			Con_Printf("Request failed\n");
 			return;
@@ -544,6 +559,10 @@ static void Web_PostFileRequest_f(void)
 		CURLFORM_FILE, path,
 		CURLFORM_END
 	);
+	if (code) {
+		Con_Printf("Request failed\n");
+		return;
+	}
 
 	Web_SubmitRequestForm(url, first_form_ptr, last_form_ptr, Web_PostResponse, requestId, NULL);
 }
