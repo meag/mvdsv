@@ -38,6 +38,10 @@ double      realtime;			// affected by pause, you should not use it unless it so
 
 #endif
 
+#ifdef DLL
+extern char consolebuf[];
+#endif
+
 int		current_skill;			// for entity spawnflags checking
 
 client_t	*sv_client;			// current client
@@ -214,8 +218,10 @@ void SV_Shutdown (char *finalmsg)
 {
 	int i;
 
-	if (!sv.state)
-		return; // already shutdown. FIXME: what about error during SV_SpawnServer() ?
+	if (!sv.state) {
+		// already shutdown. FIXME: what about error during SV_SpawnServer() ?
+		return;
+	}
 
 	SV_FinalMessage(finalmsg);
 
@@ -3049,6 +3055,7 @@ Add them exactly as if they had been typed at the console
 */
 static void SV_GetConsoleCommands (void)
 {
+#ifndef DLL
 	char	*cmd;
 
 	while (1)
@@ -3059,7 +3066,17 @@ static void SV_GetConsoleCommands (void)
 		Cbuf_AddText (cmd);
 		Cbuf_AddText ("\n");
 	}
+#endif
 }
+
+#ifdef DLL
+void SV_AddConsoleCommand(const char* text)
+{
+	Cbuf_AddText(text);
+	Cbuf_AddText("\n");
+}
+#endif
+
 #endif
 
 /*
@@ -3170,6 +3187,7 @@ SV_Frame
 ==================
 */
 void SV_Map (qbool now);
+
 void SV_Frame (double time1)
 {
 	static double start, end;
@@ -3177,6 +3195,11 @@ void SV_Frame (double time1)
 
 	start = Sys_DoubleTime ();
 	svs.stats.idle += start - end;
+
+#ifdef DLL
+	curtime = start;
+	consolebuf[0] = '\0';
+#endif
 
 	// keep the random time dependent
 	rand ();
@@ -3749,6 +3772,9 @@ void Host_Init (int argc, char **argv, int default_memsize)
 	extern int		hunk_size;
 	cvar_t			*v;
 
+#ifdef DLL
+	consolebuf[0] = '\0';
+#endif
 	srand((unsigned)time(NULL));
 
 	COM_InitArgv (argc, argv);
@@ -3816,8 +3842,10 @@ void Host_Init (int argc, char **argv, int default_memsize)
 		SV_Map(true);
 	}
 
-	if (sv.state == ss_dead)
-		SV_Error ("Couldn't spawn a server");
+	if (sv.state == ss_dead) {
+		SV_Error("Couldn't spawn a server");
+		return;
+	}
 
 #if defined (_WIN32) && !defined(_CONSOLE)
 	{

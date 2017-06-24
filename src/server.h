@@ -731,7 +731,7 @@ typedef struct
 } penfilter_t;
 //<-
 
-void SV_Frame (double time);
+void SV_Frame(double time);
 void SV_FinalMessage (const char *message);
 void SV_DropClient (client_t *drop);
 

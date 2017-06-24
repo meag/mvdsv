@@ -36,12 +36,22 @@ Con_Printf redirection
 */
 
 char	outputbuf[OUTPUTBUF_SIZE];
+#ifdef DLL
+char    consolebuf[OUTPUTBUF_SIZE];
+#endif
 
 redirect_t	sv_redirected;
 static int	sv_redirectbufcount;
 
 qbool SV_SkipCommsBotMessage(client_t* client);
 extern cvar_t sv_phs, sv_reliable_sound;
+
+#ifdef DLL
+char* SV_ConsoleBuffer(void)
+{
+	return consolebuf;
+}
+#endif
 
 /*
 ==================
@@ -118,8 +128,13 @@ void SV_EndRedirect (void)
 
 qbool SV_AddToRedirect(char *msg)
 {
-	if (!sv_redirected)
+	if (!sv_redirected) {
+#ifdef DLL
+		strlcat(consolebuf, msg, sizeof(consolebuf));
+		return true;
+#endif
 		return false;
+	}
 
 	// FIXME: probably we should check client's MTU instead of fixed MIN_MTU.
 	if (strlen(msg) + strlen(outputbuf) > /* MAX_MSGLEN */ MIN_MTU - 10)
@@ -1149,8 +1164,9 @@ void SV_SendClientMessages (void)
 			continue;		// bandwidth choke
 		}
 
-		if (c->state == cs_spawned)
-			SV_SendClientDatagram (c, i);
+		if (c->state == cs_spawned) {
+			SV_SendClientDatagram(c, i);
+		}
 		else {
 			Netchan_Transmit (&c->netchan, c->datagram.cursize, c->datagram.data);	// just update reliable
 			c->datagram.cursize = 0;

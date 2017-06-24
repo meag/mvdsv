@@ -96,7 +96,7 @@ extern	double	curtime; // not bounded or scaled, shared by local client and serv
 
 void SV_Error (char *error, ...);
 void SV_Init (void);
-void SV_Shutdown (char *finalmsg);
+void SV_Shutdown(char *finalmsg);
 #define Host_Error SV_Error // ezquake compatibility
 void Host_Init (int argc, char **argv, int default_memsize);
 void Host_ClearMemory (void);
