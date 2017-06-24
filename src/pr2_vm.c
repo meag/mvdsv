@@ -79,7 +79,7 @@ qbool PR2_IsValidWriteAddress(register qvm_t * qvm, uintptr_t address)
 
 void* VM_POINTER(byte* base, uintptr_t mask, intptr_t offset)
 {
-	intptr_t address = (intptr_t) base + offset;
+	uintptr_t address = (uintptr_t) base + offset;
 	qvm_t* qvm = (qvm_t*) sv_vm->hInst;
 
 	if (PR2_IsValidWriteAddress(qvm, address)) {
