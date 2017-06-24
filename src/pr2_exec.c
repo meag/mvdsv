@@ -151,7 +151,7 @@ char *PR2_GetEntityString(string_t num)
 		if (num) {
 			char** location = (char**)PR2_EntityStringLocation(num, sizeof(char*));
 
-			if (location) {
+			if (location && *location) {
 				return *location;
 			}
 		}
