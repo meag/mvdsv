@@ -1152,7 +1152,10 @@ cmodel_t *CM_LoadMap (char *name, qbool clientload, unsigned *checksum, unsigned
 	unsigned int i;
 	dheader_t *header;
 	unsigned int *buf;
+	unsigned int *padded_buf = NULL;
 	BuildPVSFunction cm_load_pvs_func = CM_BuildPVS;
+	qbool pad_lumps = false;
+	int required_length = 0;
 
 	if (map_name[0]) {
 		assert(!strcmp(name, map_name));
@@ -1184,10 +1187,43 @@ cmodel_t *CM_LoadMap (char *name, qbool clientload, unsigned *checksum, unsigned
 #endif
 
 	// swap all the lumps
-	cmod_base = (byte *)header;
-
-	for (i = 0; i < sizeof(dheader_t) / 4; i++)
+	for (i = 0; i < sizeof(dheader_t) / 4; i++) {
 		((int *)header)[i] = LittleLong(((int *)header)[i]);
+	}
+
+	// Align the lumps
+	for (i = 0; i < HEADER_LUMPS; ++i) {
+		pad_lumps |= (header->lumps[i].fileofs % 4) != 0;
+		required_length += header->lumps[i].filelen;
+	}
+
+	if (pad_lumps) {
+		unsigned int* old_buf = buf;
+		int position = 0;
+		int required_size = sizeof(dheader_t) + required_length + HEADER_LUMPS * 4 + 1;
+		padded_buf = Q_malloc(required_size);
+
+		// Copy header
+		memcpy(padded_buf, buf, sizeof(dheader_t));
+		header = (dheader_t*)padded_buf;
+		position += sizeof(dheader_t);
+
+		// Copy lumps
+		for (i = 0; i < HEADER_LUMPS; ++i) {
+			if (position % 4) {
+				position += 4 - (position % 4);
+			}
+			memcpy((byte*)padded_buf + position, ((byte*)buf) + header->lumps[i].fileofs, header->lumps[i].filelen);
+			header->lumps[i].fileofs = position;
+
+			position += header->lumps[i].filelen;
+		}
+
+		// Use the new buffer
+		buf = padded_buf;
+	}
+
+	cmod_base = (byte *)header;
 
 	// checksum all of the map, except for entities
 	map_checksum = map_checksum2 = 0;
@@ -1235,6 +1271,8 @@ cmodel_t *CM_LoadMap (char *name, qbool clientload, unsigned *checksum, unsigned
 		CM_BuildPHS ();
 
 	strlcpy (map_name, name, sizeof(map_name));
+
+	Q_free(padded_buf);
 
 	return &map_cmodels[0];
 }
