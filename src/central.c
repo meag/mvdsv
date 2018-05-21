@@ -2,7 +2,6 @@
 // central.c - communication with central server
 
 #include "qwsvdef.h"
-#include <curl/curl.h>
 
 #define GENERATE_CHALLENGE_PATH     "Authentication/GenerateChallenge"
 #define VERIFY_RESPONSE_PATH        "Authentication/VerifyResponse"
@@ -13,7 +12,10 @@
 #pragma comment(lib, "libcurld.lib")
 #pragma comment(lib, "ws2_32.lib")
 #pragma comment(lib, "wldap32.lib")
+#define CURL_STATICLIB
 #endif
+
+#include <curl/curl.h>
 
 static cvar_t central_server_address = { "cs_address", "" };
 static cvar_t central_server_authkey = { "cs_authkey", "" };
