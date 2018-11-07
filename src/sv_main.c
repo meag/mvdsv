@@ -945,6 +945,14 @@ qbool CheckUserinfo( char *userinfobuf, unsigned int bufsize, char *userinfo )
 		return false;
 	}
 
+#if defined(SERVERONLY)
+	// block zombie game
+	if (strstr(userinfobuf, "\\*ver\\dp\\")) {
+		Netchan_OutOfBandPrint(NS_SERVER, net_from, "%c\nThis server is QuakeWorld only\n", A2C_PRINT);
+		return false;
+	}
+#endif
+
 	return true;
 }
 
