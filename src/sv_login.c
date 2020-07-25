@@ -43,6 +43,7 @@ cvar_t sv_login_web = { "sv_login_web", "1" }; // if enabled, login via website,
 extern cvar_t sv_hashpasswords;
 static void SV_SuccessfulLogin(client_t* cl);
 static void SV_BlockedLogin(client_t* cl);
+static void SV_ForceClientName(client_t* cl, const char* forced_name);
 
 typedef enum {a_free, a_ok, a_blocked} acc_state_t;
 typedef enum {use_log, use_ip} quse_t;
@@ -766,16 +767,7 @@ static void SV_SuccessfulLogin(client_t* cl)
 		const char* forced_name = cl->login_alias[0] ? cl->login_alias : cl->login;
 
 		if (forced_name[0]) {
-			char oldval[MAX_EXT_INFO_STRING];
-
-			// Set server-side name
-			strlcpy(oldval, cl->name, MAX_EXT_INFO_STRING);
-			Info_Set(&cl->_userinfo_ctx_, "name", forced_name);
-			ProcessUserInfoChange(cl, "name", oldval);
-
-			// Change name cvar in client
-			MSG_WriteByte(&cl->netchan.message, svc_stufftext);
-			MSG_WriteString(&cl->netchan.message, va("name %s\n", forced_name));
+			SV_ForceClientName(cl, forced_name);
 		}
 	}
 	//<-
@@ -784,6 +776,36 @@ static void SV_SuccessfulLogin(client_t* cl)
 		MSG_WriteByte(&cl->netchan.message, svc_stufftext);
 		MSG_WriteString(&cl->netchan.message, "cmd new\n");
 	}
+}
+
+static void SV_ForceClientName(client_t* cl, const char* forced_name)
+{
+	char oldval[MAX_EXT_INFO_STRING];
+	int i;
+
+	// If any other clients are using this name, kick them
+	for (i = 0; i < MAX_CLIENTS; ++i) {
+		client_t* other = &svs.clients[i];
+
+		if (!other->state)
+			continue;
+		if (other == cl) {
+			continue;
+		}
+
+		if (!strcasecmp(other->name, forced_name)) {
+			SV_KickClient(other, " (using authenticated user's name)");
+		}
+	}
+
+	// Set server-side name
+	strlcpy(oldval, cl->name, MAX_EXT_INFO_STRING);
+	Info_Set(&cl->_userinfo_ctx_, "name", forced_name);
+	ProcessUserInfoChange(cl, "name", oldval);
+
+	// Change name cvar in client
+	MSG_WriteByte(&cl->netchan.message, svc_stufftext);
+	MSG_WriteString(&cl->netchan.message, va("name %s\n", forced_name));
 }
 
 void SV_LoginCheckTimeOut(client_t *cl)
