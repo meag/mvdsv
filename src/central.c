@@ -169,17 +169,17 @@ void Auth_GenerateChallengeResponse(web_request_data_t* req, qbool valid)
 		strlcat(buffer, "\n", sizeof(buffer));
 
 		strlcpy(client->challenge, challenge, sizeof(client->challenge));
-		SV_ClientPrintf(client, PRINT_HIGH, "Challenge stored...\n", message);
+		SV_ClientPrintf2(client, PRINT_HIGH, "Challenge stored...\n", message);
 
 		ClientReliableWrite_Begin (client, svc_stufftext, 2+strlen(buffer));
 		ClientReliableWrite_String (client, buffer);
 	}
 	else if (message) {
-		SV_ClientPrintf(client, PRINT_HIGH, "Error: %s\n", message);
+		SV_ClientPrintf2(client, PRINT_HIGH, "Error: %s\n", message);
 	}
 	else {
 		// Maybe add CURLOPT_ERRORBUFFER?
-		SV_ClientPrintf(client, PRINT_HIGH, "Error: unknown error\n");
+		SV_ClientPrintf2(client, PRINT_HIGH, "Error: unknown error\n");
 	}
 }
 
@@ -190,11 +190,13 @@ void Auth_ProcessLoginAttempt(web_request_data_t* req, qbool valid)
 	const char* login = NULL;
 	const char* preferred_alias = NULL;
 	const char* message = NULL;
+	const char* flag = NULL;
 	response_field_t fields[] = {
 		{ "Result", &response },
 		{ "Alias", &preferred_alias },
 		{ "Login", &login },
-		{ "Message", &message }
+		{ "Message", &message },
+		{ "Flag", &flag }
 	};
 
 	req->internal_data = NULL;
@@ -216,34 +218,27 @@ void Auth_ProcessLoginAttempt(web_request_data_t* req, qbool valid)
 			ProcessUserInfoChange(client, "*auth", oldval);
 		}
 
-		if (!preferred_alias) {
-			preferred_alias = login;
-		}
+		flag = (flag ? flag : "");
+		strlcpy(client->login_flag, flag, sizeof(client->login_flag));
+		Info_SetStar(&client->_userinfo_ctx_, "*flag", flag);
+		ProcessUserInfoChange(client, "*flag", flag);
 
+		preferred_alias = preferred_alias ? preferred_alias : login;
 		if (preferred_alias) {
-			char oldval[MAX_EXT_INFO_STRING];
-			strlcpy (oldval, client->name, MAX_EXT_INFO_STRING);
-
-			// Change nickname
-			SV_BroadcastPrintf(PRINT_HIGH, "%s logged in as %s\n", client->name, preferred_alias);
-			Info_Set(&client->_userinfo_ctx_, "name", preferred_alias);
-
-			ProcessUserInfoChange(client, "name", oldval);
-
-			if (strcmp(preferred_alias, oldval)) {
-				// Change name cvar in client
-				MSG_WriteByte (&client->netchan.message, svc_stufftext);
-				MSG_WriteString (&client->netchan.message, va("name %s\n", preferred_alias));
-			}
+			strlcpy(client->login_alias, preferred_alias, sizeof(client->login_alias));
 		}
-		client->logged = true;
+		client->logged_in_via_web = true;
+
+		SV_LoginWebCheck(client);
 	}
 	else if (message) {
-		SV_ClientPrintf(client, PRINT_HIGH, "Error: %s\n", message);
+		SV_ClientPrintf2(client, PRINT_HIGH, "Error: %s\n", message);
+		SV_LoginWebFailed(client);
 	}
 	else {
 		// Maybe add CURLOPT_ERRORBUFFER?
-		SV_ClientPrintf(client, PRINT_HIGH, "Error: unknown error\n");
+		SV_ClientPrintf2(client, PRINT_HIGH, "Error: unknown error (invalid response from server)\n");
+		SV_LoginWebFailed(client);
 	}
 }
 
@@ -365,6 +360,11 @@ void Central_VerifyChallengeResponse(client_t* client, const char* challenge, co
 	struct curl_httppost *last_form_ptr = NULL;
 	CURLFORMcode code;
 
+	if (!sv_www_address.string[0]) {
+		SV_ClientPrintf2(client, PRINT_HIGH, "Remote logins not supported on this server\n");
+		return;
+	}
+
 	code = curl_formadd(&first_form_ptr, &last_form_ptr,
 		CURLFORM_PTRNAME, "challenge",
 		CURLFORM_COPYCONTENTS, challenge,
@@ -389,6 +389,11 @@ void Central_GenerateChallenge(client_t* client, const char* username)
 	struct curl_httppost *first_form_ptr = NULL;
 	struct curl_httppost *last_form_ptr = NULL;
 	CURLFORMcode code;
+
+	if (!sv_www_address.string[0]) {
+		SV_ClientPrintf2(client, PRINT_HIGH, "Remote logins not supported on this server\n");
+		return;
+	}
 
 	Web_ConstructURL(url, GENERATE_CHALLENGE_PATH, sizeof(url));
 
