@@ -3092,14 +3092,21 @@ void Cmd_PEXT_f(void)
 // { Central login
 void Cmd_Login_f(void)
 {
-	extern void Central_GenerateChallenge(client_t* client, const char* username);
+	if (sv_client->state != cs_spawned) {
+		extern cvar_t sv_login;
+
+		if (!(int)sv_login.value) {
+			SV_ClientPrintf2(sv_client, PRINT_HIGH, "Cannot login during connection\n");
+			return;
+		}
+	}
 
 	if (Cmd_Argc() != 2) {
 		SV_ClientPrintf2(sv_client, PRINT_HIGH, "Usage: login <username>\n");
 		return;
 	}
 
-	if (sv.time - sv_client->login_request_time < LOGIN_MIN_RETRY_TIME) {
+	if (curtime - sv_client->login_request_time < LOGIN_MIN_RETRY_TIME) {
 		SV_ClientPrintf2(sv_client, PRINT_HIGH, "Please wait and try again\n");
 		return;
 	}
@@ -3109,7 +3116,12 @@ void Cmd_Login_f(void)
 		return;
 	}
 
-	Central_GenerateChallenge(sv_client, Cmd_Argv(1));
+	if (sv_client->state != cs_spawned) {
+		SV_ParseWebLogin(sv_client);
+	}
+	else {
+		Central_GenerateChallenge(sv_client, Cmd_Argv(1), false);
+	}
 }
 
 void Cmd_ChallengeResponse_f(void)
@@ -3117,16 +3129,16 @@ void Cmd_ChallengeResponse_f(void)
 	extern void Central_VerifyChallengeResponse(client_t* client, const char* challenge, const char* response);
 
 	if (Cmd_Argc() != 2) {
-		MSG_WriteByte (&sv_client->netchan.message, svc_print);
-		MSG_WriteByte (&sv_client->netchan.message, PRINT_HIGH);
-		MSG_WriteString (&sv_client->netchan.message, "Usage: challenge-response <response>\n");
+		MSG_WriteByte(&sv_client->netchan.message, svc_print);
+		MSG_WriteByte(&sv_client->netchan.message, PRINT_HIGH);
+		MSG_WriteString(&sv_client->netchan.message, "Usage: challenge-response <response>\n");
 		return;
 	}
 
-	if (sv.time - sv_client->login_request_time < LOGIN_MIN_RETRY_TIME || !sv_client->challenge[0]) {
-		MSG_WriteByte (&sv_client->netchan.message, svc_print);
-		MSG_WriteByte (&sv_client->netchan.message, PRINT_HIGH);
-		MSG_WriteString (&sv_client->netchan.message, "Please wait and try again\n");
+	if (!sv_client->challenge[0]) {
+		MSG_WriteByte(&sv_client->netchan.message, svc_print);
+		MSG_WriteByte(&sv_client->netchan.message, PRINT_HIGH);
+		MSG_WriteString(&sv_client->netchan.message, "Please wait and try again\n");
 		return;
 	}
 

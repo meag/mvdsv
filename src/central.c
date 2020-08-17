@@ -334,7 +334,7 @@ static void Web_SubmitRequestForm(const char* url, struct curl_httppost *first_f
 	);
 
 	data->onCompleteCallback = callback;
-	data->time_sent = sv.time;
+	data->time_sent = curtime;
 	data->internal_data = internal_data;
 	data->handle = req;
 	data->request_id = requestId && requestId[0] ? strdup(requestId) : NULL;
@@ -379,11 +379,11 @@ void Central_VerifyChallengeResponse(client_t* client, const char* challenge, co
 
 	Web_ConstructURL(url, VERIFY_RESPONSE_PATH, sizeof(url));
 
-	client->login_request_time = sv.time;
+	client->login_request_time = curtime;
 	Web_SubmitRequestForm(url, first_form_ptr, last_form_ptr, Auth_ProcessLoginAttempt, NULL, client);
 }
 
-void Central_GenerateChallenge(client_t* client, const char* username)
+void Central_GenerateChallenge(client_t* client, const char* username, qbool during_login)
 {
 	char url[512];
 	struct curl_httppost *first_form_ptr = NULL;
@@ -403,7 +403,13 @@ void Central_GenerateChallenge(client_t* client, const char* username)
 		CURLFORM_END
 	);
 
-	client->login_request_time = sv.time;
+	code = curl_formadd(&first_form_ptr, &last_form_ptr,
+		CURLFORM_PTRNAME, "status",
+		CURLFORM_COPYCONTENTS, during_login ? "0" : "1",
+		CURLFORM_END
+	);
+
+	client->login_request_time = curtime;
 	Web_SubmitRequestForm(url, first_form_ptr, last_form_ptr, Auth_GenerateChallengeResponse, NULL, client);
 }
 

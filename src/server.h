@@ -1010,6 +1010,7 @@ void SV_ListAccount_f (void);
 void Login_Init (void);
 qbool SV_Login(client_t *cl);
 void SV_Logout(client_t *cl);
+void SV_ParseWebLogin(client_t* cl);
 void SV_ParseLogin(client_t *cl);
 void SV_LoginCheckTimeOut(client_t *cl);
 void SV_LoginWebCheck(client_t* cl);

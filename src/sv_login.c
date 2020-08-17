@@ -37,7 +37,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 cvar_t sv_login = {"sv_login", "0"};	// if enabled, login required
 #ifdef WEBSITE_LOGIN_SUPPORT
-cvar_t sv_login_web = { "sv_login_web", "1" }; // if enabled, login via website, rather than local files
+cvar_t sv_login_web = { "sv_login_web", "1" }; // 0=local files, 1=optional auth via website, 2=mandatory auth (must have account in local files)
 #endif
 
 extern cvar_t sv_hashpasswords;
@@ -631,6 +631,10 @@ qbool SV_Login(client_t *cl)
 
 void SV_Logout(client_t *cl)
 {
+	char oldval[MAX_EXT_INFO_STRING];
+
+	strlcpy(oldval, cl->login, sizeof(oldval));
+
 	if (cl->logged > 0 && cl->logged <= sizeof(accounts) / sizeof(accounts[0])) {
 		accounts[cl->logged - 1].inuse--;
 	}
@@ -640,9 +644,10 @@ void SV_Logout(client_t *cl)
 	memset(cl->login_flag, 0, sizeof(cl->login_flag));
 	cl->logged = 0;
 	cl->logged_in_via_web = false;
+	ProcessUserInfoChange(cl, "*auth", oldval);
 }
 
-static void SV_ParseWebLogin(client_t* cl)
+void SV_ParseWebLogin(client_t* cl)
 {
 	char parameter[128] = { 0 };
 	char* p;
@@ -667,7 +672,7 @@ static void SV_ParseWebLogin(client_t* cl)
 	}
 	else {
 		// Treat as username
-		Central_GenerateChallenge(cl, parameter);
+		Central_GenerateChallenge(cl, parameter, true);
 
 		SV_ClientPrintf2(cl, PRINT_HIGH, "Generating challenge, please wait...\n");
 	}
