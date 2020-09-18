@@ -3955,11 +3955,9 @@ static void SV_UserSetWeaponRank(client_t* cl, const char* new_wrank)
 		Info_Set(&cl->_userinfo_ctx_, "wrank", new_wrank);
 		ProcessUserInfoChange(sv_client, "wrank", old_wrank);
 
-#ifdef _DEBUG
 		if (Info_Get(&cl->_userinfo_ctx_, "dev")[0] == '1') {
 			SV_ClientPrintf(sv_client, PRINT_HIGH, "Setting new wrank: %s\n", new_wrank);
 		}
-#endif
 	}
 }
 
