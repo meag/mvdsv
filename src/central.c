@@ -29,6 +29,7 @@ struct web_request_data_s;
 
 typedef void(*web_response_func_t)(struct web_request_data_s* req, qbool valid);
 static void Web_ConstructURL(char* url, const char* path, int sizeof_url);
+static int utf_encode_string(char* value, char* encoded_value);
 static void Web_SubmitRequestForm(const char* url, struct curl_httppost *first_form_ptr, struct curl_httppost *last_form_ptr, web_response_func_t callback, const char* requestId, void* internal_data);
 
 typedef struct web_request_data_s {
@@ -168,7 +169,7 @@ void Auth_GenerateChallengeResponse(web_request_data_t* req, qbool valid)
 		strlcat(buffer, challenge, sizeof(buffer));
 		strlcat(buffer, "\n", sizeof(buffer));
 
-		strlcpy(client->challenge, challenge, sizeof(client->challenge));
+		strlcpy(client->login_challenge, challenge, sizeof(client->login_challenge));
 		SV_ClientPrintf2(client, PRINT_HIGH, "Challenge stored...\n", message);
 
 		ClientReliableWrite_Begin (client, svc_stufftext, 2+strlen(buffer));
@@ -191,12 +192,14 @@ void Auth_ProcessLoginAttempt(web_request_data_t* req, qbool valid)
 	const char* preferred_alias = NULL;
 	const char* message = NULL;
 	const char* flag = NULL;
+	const char* confirmation = NULL;
 	response_field_t fields[] = {
 		{ "Result", &response },
 		{ "Alias", &preferred_alias },
 		{ "Login", &login },
 		{ "Message", &message },
-		{ "Flag", &flag }
+		{ "Flag", &flag },
+		{ "Confirmation", &confirmation }
 	};
 
 	req->internal_data = NULL;
@@ -216,6 +219,10 @@ void Auth_ProcessLoginAttempt(web_request_data_t* req, qbool valid)
 
 			Info_SetStar(&client->_userinfo_ctx_, "*auth", login);
 			ProcessUserInfoChange(client, "*auth", oldval);
+		}
+
+		if (confirmation) {
+			strlcpy(client->login_confirmation, confirmation, sizeof(client->login_confirmation));
 		}
 
 		flag = (flag ? flag : "");
@@ -425,13 +432,100 @@ static void Web_ConstructURL(char* url, const char* path, int sizeof_url)
 	strlcat(url, path, sizeof_url);
 }
 
+#define MAX_ENCODED_STRINGLEN 128
+
+static qbool Web_AddParametersToRequest(int first_param, struct curl_httppost** first_form_ptr, struct curl_httppost** last_form_ptr)
+{
+	int i;
+
+	for (i = first_param; i < Cmd_Argc() - 1; i += 2) {
+		char encoded_value[MAX_ENCODED_STRINGLEN];
+		int encoded_length = 0;
+		int j;
+		char* name;
+		char* value;
+		CURLFORMcode code;
+
+		name = Cmd_Argv(i);
+		value = Cmd_Argv(i + 1);
+		if (!strcmp(name, "*internal")) {
+			if (!strcmp(value, "authinfo")) {
+				int login_count = 0;
+
+				// Also submit authentication challenges/responses
+				for (j = 0; j < MAX_CLIENTS; ++j) {
+					if (svs.clients[j].state > cs_free) {
+						if (svs.clients[j].login[0] && svs.clients[j].logged_in_via_web) {
+							name = va("logins[%d].name", login_count);
+							utf_encode_string(svs.clients[j].login, encoded_value);
+							code = curl_formadd(first_form_ptr, last_form_ptr,
+								CURLFORM_COPYNAME, name,
+								CURLFORM_COPYCONTENTS, encoded_value,
+								CURLFORM_END
+							);
+
+							if (code != CURLE_OK) {
+								Con_Printf("Request failed (adding to form)\n");
+								return false;
+							}
+
+							name = va("logins[%d].token", login_count);
+							utf_encode_string(svs.clients[j].login_confirmation, encoded_value);
+							code = curl_formadd(first_form_ptr, last_form_ptr,
+								CURLFORM_COPYNAME, name,
+								CURLFORM_COPYCONTENTS, encoded_value,
+								CURLFORM_END
+							);
+
+							if (code != CURLE_OK) {
+								Con_Printf("Request failed (adding to form)\n");
+								return false;
+							}
+
+							++login_count;
+						}
+					}
+				}
+
+				snprintf(encoded_value, sizeof(encoded_value), "%d", login_count);
+				code = curl_formadd(first_form_ptr, last_form_ptr,
+					CURLFORM_COPYNAME, "logincount",
+					CURLFORM_COPYCONTENTS, encoded_value,
+					CURLFORM_END
+				);
+
+				if (code != CURLE_OK) {
+					Con_Printf("Request failed (adding to form)\n");
+					return false;
+				}
+			}
+			continue;
+		}
+		else {
+			utf_encode_string(value, encoded_value);
+		}
+
+		code = curl_formadd(first_form_ptr, last_form_ptr,
+			CURLFORM_COPYNAME, name,
+			CURLFORM_COPYCONTENTS, encoded_value,
+			CURLFORM_END
+		);
+
+		if (code != CURLE_OK) {
+			Con_Printf("Request failed (adding to form)\n");
+			return false;
+		}
+	}
+
+	return true;
+}
+
 static void Web_SendRequest(qbool post)
 {
 	struct curl_httppost *first_form_ptr = NULL;
 	struct curl_httppost *last_form_ptr = NULL;
 	char url[512];
 	char* requestId = NULL;
-	int i;
 
 	if (!sv_www_address.string[0]) {
 		Con_Printf("Address not set - functionality disabled\n");
@@ -453,35 +547,23 @@ static void Web_SendRequest(qbool post)
 		requestId = NULL;
 	}
 
-	for (i = 3; i < Cmd_Argc() - 1; i += 2) {
-		char encoded_value[128];
-		int encoded_length = 0;
-		int j;
-		char* name;
-		char* value;
-		CURLFORMcode code;
-
-		name = Cmd_Argv(i);
-		value = Cmd_Argv(i + 1);
-		for (j = 0; j < strlen(value) && encoded_length < sizeof(encoded_value) - 2; ++j) {
-			encoded_length += utf8Encode(value[j], &encoded_value[encoded_length], &encoded_value[encoded_length + 1]);
-		}
-		encoded_value[encoded_length] = '\0';
-
-		code = curl_formadd(&first_form_ptr, &last_form_ptr,
-			CURLFORM_COPYNAME, name,
-			CURLFORM_COPYCONTENTS, encoded_value,
-			CURLFORM_END
-		);
-
-		if (code != CURLE_OK) {
-			curl_formfree(first_form_ptr);
-			Con_Printf("Request failed\n");
-			return;
-		}
+	if (!Web_AddParametersToRequest(3, &first_form_ptr, &last_form_ptr)) {
+		curl_formfree(first_form_ptr);
+		return;
 	}
 
 	Web_SubmitRequestForm(url, first_form_ptr, last_form_ptr, Web_PostResponse, requestId, NULL);
+}
+
+int utf_encode_string(char* value, char* encoded_value)
+{
+	int j;
+	int encoded_length = 0;
+	for (j = 0; j < strlen(value) && encoded_length < MAX_ENCODED_STRINGLEN - 2; ++j) {
+		encoded_length += utf8Encode(value[j], &encoded_value[encoded_length], &encoded_value[encoded_length + 1]);
+	}
+	encoded_value[encoded_length] = '\0';
+	return encoded_length;
 }
 
 static void Web_GetRequest_f(void)
@@ -502,13 +584,27 @@ static void Web_PostFileRequest_f(void)
 	char url[512];
 	char path[MAX_OSPATH];
 	CURLFORMcode code = 0;
-	const char* specified = Cmd_Argv(3);
+	const char* specified;
 
 	if (!sv_www_address.string[0]) {
 		Con_Printf("Address not set - functionality disabled\n");
 		return;
 	}
 
+	if (Cmd_Argc() < 4) {
+		Con_Printf("Usage: %s <url> <request-id> <file> (<key> <value>)*\n", Cmd_Argv(0));
+		return;
+	}
+
+	requestId = Cmd_Argv(2);
+	if (requestId[0]) {
+		requestId = Q_strdup(requestId);
+	}
+	else {
+		requestId = NULL;
+	}
+
+	specified = Cmd_Argv(3);
 	if (specified[0] == '*' && specified[1] == '\0') {
 		const char* demoname = SV_MVDDemoName();
 
@@ -528,25 +624,12 @@ static void Web_PostFileRequest_f(void)
 		snprintf(path, MAX_OSPATH, "%s/%s", fs_gamedir, specified);
 	}
 
-	if (Cmd_Argc() < 4) {
-		Con_Printf("Usage: %s <url> <request-id> <file> (<key> <value>)*\n", Cmd_Argv(0));
-		return;
-	}
-
 	if (FS_UnsafeFilename(path)) {
 		Con_Printf("Filename invalid\n");
 		return;
 	}
 
 	Web_ConstructURL(url, Cmd_Argv(1), sizeof(url));
-
-	requestId = Cmd_Argv(2);
-	if (requestId[0]) {
-		requestId = Q_strdup(requestId);
-	}
-	else {
-		requestId = NULL;
-	}
 
 	if (! CheckFileExists(path)) {
 		Con_Printf("Failed to open file\n");
@@ -558,6 +641,16 @@ static void Web_PostFileRequest_f(void)
 		CURLFORM_FILE, path,
 		CURLFORM_END
 	);
+	if (code != CURLE_OK) {
+		Con_Printf("Request failed (adding file to form)\n");
+		return;
+	}
+
+	// Optional parameters to be sent to web server
+	if (!Web_AddParametersToRequest(4, &first_form_ptr, &last_form_ptr)) {
+		curl_formfree(first_form_ptr);
+		return;
+	}
 
 	Web_SubmitRequestForm(url, first_form_ptr, last_form_ptr, Web_PostResponse, requestId, NULL);
 }

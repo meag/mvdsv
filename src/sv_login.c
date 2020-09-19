@@ -577,8 +577,11 @@ qbool SV_Login(client_t *cl)
 
 	// is sv_login is disabled, login is not necessery
 	if (!(int)sv_login.value) {
-		SV_Logout(cl);
-		cl->logged = -1;
+		// If using local files then logout
+		if (!cl->logged_in_via_web) {
+			SV_Logout(cl);
+			cl->logged = -1;
+		}
 		return true;
 	}
 
@@ -642,6 +645,8 @@ void SV_Logout(client_t *cl)
 	memset(cl->login, 0, sizeof(cl->login));
 	memset(cl->login_alias, 0, sizeof(cl->login_alias));
 	memset(cl->login_flag, 0, sizeof(cl->login_flag));
+	memset(cl->login_challenge, 0, sizeof(cl->login_challenge));
+	memset(cl->login_confirmation, 0, sizeof(cl->login_confirmation));
 	cl->logged = 0;
 	cl->logged_in_via_web = false;
 	ProcessUserInfoChange(cl, "*auth", oldval);
@@ -661,9 +666,9 @@ void SV_ParseWebLogin(client_t* cl)
 		return;
 	}
 
-	if (cl->challenge[0]) {
+	if (cl->login_challenge[0]) {
 		// This is response to challenge, treat as password
-		Central_VerifyChallengeResponse(cl, cl->challenge, parameter);
+		Central_VerifyChallengeResponse(cl, cl->login_challenge, parameter);
 
 		SV_ClientPrintf2(cl, PRINT_HIGH, "Challenge received, please wait...\n");
 	}
@@ -844,7 +849,7 @@ void SV_LoginWebCheck(client_t* cl)
 
 void SV_LoginWebFailed(client_t* cl)
 {
-	memset(cl->challenge, 0, sizeof(cl->challenge));
+	memset(cl->login_challenge, 0, sizeof(cl->login_challenge));
 	cl->login_request_time = 0;
 
 	SV_ClientPrintf2(cl, PRINT_HIGH, "Challenge response failed.\n");

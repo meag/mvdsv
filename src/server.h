@@ -288,7 +288,8 @@ typedef struct client_s
 	char			login[CLIENT_LOGIN_LEN];
 	char            login_alias[CLIENT_NAME_LEN];
 	char            login_flag[LOGIN_FLAG_LENGTH];
-	char            challenge[LOGIN_CHALLENGE_LENGTH];
+	char            login_confirmation[LOGIN_CHALLENGE_LENGTH];
+	char            login_challenge[LOGIN_CHALLENGE_LENGTH];
 	int				logged;
 	qbool           logged_in_via_web;
 	double          login_request_time;

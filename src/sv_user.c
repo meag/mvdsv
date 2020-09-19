@@ -3128,8 +3128,6 @@ void Cmd_Login_f(void)
 
 void Cmd_ChallengeResponse_f(void)
 {
-	extern void Central_VerifyChallengeResponse(client_t* client, const char* challenge, const char* response);
-
 	if (Cmd_Argc() != 2) {
 		MSG_WriteByte(&sv_client->netchan.message, svc_print);
 		MSG_WriteByte(&sv_client->netchan.message, PRINT_HIGH);
@@ -3137,14 +3135,14 @@ void Cmd_ChallengeResponse_f(void)
 		return;
 	}
 
-	if (!sv_client->challenge[0]) {
+	if (!sv_client->login_challenge[0]) {
 		MSG_WriteByte(&sv_client->netchan.message, svc_print);
 		MSG_WriteByte(&sv_client->netchan.message, PRINT_HIGH);
 		MSG_WriteString(&sv_client->netchan.message, "Please wait and try again\n");
 		return;
 	}
 
-	Central_VerifyChallengeResponse(sv_client, sv_client->challenge, Cmd_Argv(1));
+	Central_VerifyChallengeResponse(sv_client, sv_client->login_challenge, Cmd_Argv(1));
 }
 
 void Cmd_Logout_f(void)
