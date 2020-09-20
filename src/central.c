@@ -225,10 +225,15 @@ void Auth_ProcessLoginAttempt(web_request_data_t* req, qbool valid)
 			strlcpy(client->login_confirmation, confirmation, sizeof(client->login_confirmation));
 		}
 
-		flag = (flag ? flag : "");
-		strlcpy(client->login_flag, flag, sizeof(client->login_flag));
-		Info_SetStar(&client->_userinfo_ctx_, "*flag", flag);
-		ProcessUserInfoChange(client, "*flag", flag);
+		{
+			char oldval[MAX_EXT_INFO_STRING];
+
+			flag = (flag ? flag : "");
+			strlcpy(oldval, Info_Get(&client->_userinfo_ctx_, "*flag"), sizeof(oldval));
+			strlcpy(client->login_flag, flag, sizeof(client->login_flag));
+			Info_SetStar(&client->_userinfo_ctx_, "*flag", flag);
+			ProcessUserInfoChange(client, "*flag", oldval);
+		}
 
 		preferred_alias = preferred_alias ? preferred_alias : login;
 		if (preferred_alias) {

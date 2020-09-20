@@ -37,7 +37,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 cvar_t sv_login = {"sv_login", "0"};	// if enabled, login required
 #ifdef WEBSITE_LOGIN_SUPPORT
-cvar_t sv_login_web = { "sv_login_web", "1" }; // 0=local files, 1=optional auth via website, 2=mandatory auth (must have account in local files)
+cvar_t sv_login_web = { "sv_login_web", "1" }; // 0=local files, 1=auth via website (bans can be in local files), 2=mandatory auth (must have account in local files)
 #endif
 
 extern cvar_t sv_hashpasswords;
@@ -634,13 +634,14 @@ qbool SV_Login(client_t *cl)
 
 void SV_Logout(client_t *cl)
 {
-	char oldval[MAX_EXT_INFO_STRING];
-
-	strlcpy(oldval, cl->login, sizeof(oldval));
-
 	if (cl->logged > 0 && cl->logged <= sizeof(accounts) / sizeof(accounts[0])) {
 		accounts[cl->logged - 1].inuse--;
 	}
+
+	Info_SetStar(&cl->_userinfo_ctx_, "*auth", "");
+	Info_SetStar(&cl->_userinfo_ctx_, "*flag", "");
+	ProcessUserInfoChange(cl, "*auth", cl->login);
+	ProcessUserInfoChange(cl, "*flag", cl->login_flag);
 
 	memset(cl->login, 0, sizeof(cl->login));
 	memset(cl->login_alias, 0, sizeof(cl->login_alias));
@@ -649,7 +650,6 @@ void SV_Logout(client_t *cl)
 	memset(cl->login_confirmation, 0, sizeof(cl->login_confirmation));
 	cl->logged = 0;
 	cl->logged_in_via_web = false;
-	ProcessUserInfoChange(cl, "*auth", oldval);
 }
 
 void SV_ParseWebLogin(client_t* cl)

@@ -3155,13 +3155,13 @@ void Cmd_Logout_f(void)
 		}
 
 		SV_Logout(sv_client);
-		if (!(int)sv_login.value) {
+		if (!(int)sv_login.value || ((int)sv_login.value == 1 && sv_client->spectator)) {
 			sv_client->logged = -1;
 		}
 	}
 
 	// If logins are mandatory then treat as disconnect
-	if ((int)sv_login.value) {
+	if ((int)sv_login.value > 1 || ((int)sv_login.value == 1 && !sv_client->spectator)) {
 		SV_DropClient(sv_client);
 	}
 }
